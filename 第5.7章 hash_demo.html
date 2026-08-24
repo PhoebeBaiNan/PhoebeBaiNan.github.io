@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FNV-1a 哈希函数：数学原理与雪崩效应</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Serif+SC:wght@400;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e3a5f;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6b;
+    --accent4: #ffd700;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --glow: rgba(0, 212, 255, 0.15);
+    --glow2: rgba(255, 107, 53, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Serif SC', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 60px 0 40px;
+    position: relative;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    border: 1px solid var(--border);
+    padding: 6px 16px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--text-dim);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.8;
+  }
+
+  /* SECTIONS */
+  .section {
+    margin: 48px 0;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .section.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .section-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 24px;
+    color: #fff;
+  }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 28px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+  }
+
+  .card.orange::before { background: var(--accent2); }
+  .card.green::before { background: var(--accent3); }
+  .card.gold::before { background: var(--accent4); }
+
+  /* CODE BLOCKS */
+  .code-block {
+    background: #060d1a;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2;
+    overflow-x: auto;
+    position: relative;
+  }
+
+  .code-block .keyword { color: #7eb8f7; }
+  .code-block .type { color: #4ec9b0; }
+  .code-block .number { color: #b5cea8; }
+  .code-block .comment { color: #6a9955; font-style: italic; }
+  .code-block .string { color: #ce9178; }
+  .code-block .fn { color: #dcdcaa; }
+
+  /* MATH DISPLAY */
+  .math-box {
+    background: #060d1a;
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 2.2;
+    border-left: 3px solid var(--accent4);
+  }
+
+  .math-box .eq { color: var(--accent4); }
+  .math-box .result { color: var(--accent3); }
+  .math-box .comment { color: var(--text-muted); }
+
+  /* INTERACTIVE SECTION */
+  .interactive-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 32px;
+    position: relative;
+  }
+
+  .interactive-panel::after {
+    content: 'LIVE';
+    position: absolute;
+    top: 16px; right: 16px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--accent3);
+    border: 1px solid var(--accent3);
+    padding: 3px 8px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .input-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+
+  .input-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 60px;
+  }
+
+  input[type="text"] {
+    background: #060d1a;
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    padding: 10px 16px;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.2s;
+    letter-spacing: 1px;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow);
+  }
+
+  .hash-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .hash-card {
+    background: #060d1a;
+    border: 1px solid var(--border);
+    padding: 16px 20px;
+  }
+
+  .hash-card-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  .hash-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 2px;
+    word-break: break-all;
+    transition: color 0.3s;
+  }
+
+  .hash-value.changed {
+    color: var(--accent2);
+    animation: flash 0.5s ease;
+  }
+
+  @keyframes flash {
+    0% { color: #fff; }
+    100% { color: var(--accent2); }
+  }
+
+  /* BIT VISUALIZATION */
+  .bit-viz {
+    margin-top: 20px;
+  }
+
+  .bit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .bit-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 100px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bits {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+  }
+
+  .bit {
+    width: 16px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    border: 1px solid #1e3a5f;
+    transition: all 0.3s ease;
+    background: #060d1a;
+  }
+
+  .bit.one { background: var(--accent); color: #000; border-color: var(--accent); }
+  .bit.diff { background: var(--accent2); color: #fff; border-color: var(--accent2); animation: blink 0.6s ease; }
+
+  @keyframes blink {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.3); }
+  }
+
+  .diff-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent2);
+    margin-top: 12px;
+    padding: 8px 16px;
+    background: rgba(255,107,53,0.1);
+    border: 1px solid rgba(255,107,53,0.3);
+    display: inline-block;
+  }
+
+  /* STEP-BY-STEP */
+  .steps {
+    counter-reset: step;
+  }
+
+  .step {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 24px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-content h4 {
+    font-size: 16px;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .step-content p {
+    color: var(--text-dim);
+    line-height: 1.8;
+    font-size: 15px;
+    margin-bottom: 10px;
+  }
+
+  /* MEMORY LAYOUT */
+  .memory-layout {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 16px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    overflow-x: auto;
+  }
+
+  .mem-block {
+    border: 1px solid var(--border);
+    padding: 10px 8px;
+    text-align: center;
+    flex: 1;
+    min-width: 60px;
+  }
+
+  .mem-block.high { 
+    background: rgba(255,107,53,0.15); 
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .mem-block.low { 
+    background: rgba(0,212,255,0.1); 
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .mem-block.discard { 
+    background: rgba(100,116,139,0.1); 
+    border-color: #334155;
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+  .mem-block.keep {
+    background: rgba(127,255,107,0.1);
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  .mem-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+
+  .mem-val {
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  /* COMPARISON TABLE */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    margin-top: 16px;
+  }
+
+  .compare-table th {
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-weight: 400;
+    letter-spacing: 1px;
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #111827;
+    vertical-align: middle;
+    line-height: 1.6;
+  }
+
+  .compare-table tr:hover td { background: var(--surface2); }
+
+  .tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 0;
+    font-weight: 700;
+  }
+
+  .tag.good { background: rgba(127,255,107,0.15); color: var(--accent3); border: 1px solid rgba(127,255,107,0.3); }
+  .tag.bad { background: rgba(255,107,53,0.15); color: var(--accent2); border: 1px solid rgba(255,107,53,0.3); }
+  .tag.neutral { background: rgba(0,212,255,0.1); color: var(--accent); border: 1px solid rgba(0,212,255,0.3); }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+    margin: 48px 0;
+  }
+
+  /* FORMULA */
+  .formula {
+    background: linear-gradient(135deg, rgba(0,212,255,0.05), rgba(255,107,53,0.05));
+    border: 1px solid var(--border);
+    padding: 24px;
+    text-align: center;
+    margin: 20px 0;
+  }
+
+  .formula-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent4);
+    line-height: 2;
+  }
+
+  /* AGENT SECTION */
+  .agent-section {
+    background: linear-gradient(135deg, var(--surface), #0d1a2e);
+    border: 1px solid var(--accent);
+    padding: 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .agent-section::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(0,212,255,0.03) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+  }
+
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .agent-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .ask-input-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .ask-input {
+    flex: 1;
+    background: #060d1a;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .ask-input:focus {
+    border-color: var(--accent);
+  }
+
+  .ask-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 12px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .ask-btn:hover { background: #fff; }
+  .ask-btn:disabled { background: var(--text-muted); cursor: not-allowed; }
+
+  .ask-suggested {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .suggest-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .suggest-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .response-box {
+    background: #060d1a;
+    border: 1px solid var(--border);
+    padding: 20px;
+    min-height: 80px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--text-dim);
+    position: relative;
+    z-index: 1;
+    white-space: pre-wrap;
+    display: none;
+  }
+
+  .response-box.visible { display: block; }
+
+  .typing-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: var(--accent);
+    animation: blink-cursor 1s infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+
+  @keyframes blink-cursor {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .loading-dots {
+    display: inline-flex;
+    gap: 6px;
+    padding: 8px 0;
+  }
+
+  .loading-dot {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: dot-bounce 1.4s infinite;
+  }
+
+  .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  /* SNOWBALL VISUALIZATION */
+  .avalanche-viz {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 20px 0;
+  }
+
+  .av-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .av-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 80px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .av-bar {
+    height: 24px;
+    background: var(--accent);
+    transition: width 0.8s ease;
+    position: relative;
+    min-width: 4px;
+  }
+
+  .av-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-left: 8px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    padding: 40px 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    margin-top: 60px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">整数安全 · 第五章</div>
+    <h1>FNV-1a 哈希函数<br>数学原理与雪崩效应</h1>
+    <p class="hero-sub">
+      同样是 uint32_t 乘法回绕——在 calloc 里是漏洞，在哈希函数里是设计。<br>
+      区别只有一个：程序员是否知道它会发生。
+    </p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1: WHAT IS HASH -->
+  <div class="section">
+    <div class="section-label">概念建立</div>
+    <div class="section-title">哈希函数是什么</div>
+    
+    <div class="card">
+      <p style="line-height:2; font-size:15px; color:var(--text-dim); margin-bottom:16px;">
+        把哈希函数想象成一台<span style="color:var(--accent)">搅拌机</span>：放进去一杯橙汁，搅出固定颜色的液体；放进去同一杯橙汁加一滴墨水，搅出的颜色和之前<span style="color:var(--accent2)">完全不同</span>——不是"稍微深一点"，而是彻底变了。它有三条关键性质：<span style="color:var(--accent3)">①</span> 同样的材料每次搅出一样的颜色（确定性）；<span style="color:var(--accent3)">②</span> 材料差一点点，颜色天翻地覆（雪崩效应）；<span style="color:var(--accent3)">③</span> 看着颜色，你没办法反推原来放了什么（单向性）。安全场景下最重要的是第②条。
+      </p>
+      <div class="math-box">
+        <span class="comment">// 输入：任意长度的数据</span><br>
+        <span class="comment">// 输出：固定范围内的一个整数</span><br><br>
+        <span class="eq">"abc"</span>   →  <span class="result">0xE40C292C</span><br>
+        <span class="eq">"abd"</span>   →  <span class="result">0xE70C2DE5</span>  <span class="comment">← 只差一个字符，输出完全不同</span><br>
+        <span class="eq">"hello"</span> →  <span class="result">0x4F9F2CAB</span><br>
+        <span class="eq">任意长文件</span> →  <span class="result">0 到 2³²-1 之间的一个数</span>
+      </div>
+    </div>
+
+    <div class="card orange" style="margin-top:16px;">
+      <h4 style="color:#fff; margin-bottom:12px; font-size:16px;">安全场景下的核心要求：雪崩效应</h4>
+      <p style="line-height:2; color:var(--text-dim); font-size:15px; margin-bottom:12px;">
+        如果输入差一点，输出也只差一点，攻击者可以：
+      </p>
+      <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+        <div style="background:#060d1a; border:1px solid rgba(255,107,53,0.3); padding:14px; text-align:center;">
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); margin-bottom:8px; letter-spacing:1px;">猜测原始数据</div>
+          <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">微小的输出变化暴露了输入规律</div>
+        </div>
+        <div style="background:#060d1a; border:1px solid rgba(255,107,53,0.3); padding:14px; text-align:center;">
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); margin-bottom:8px; letter-spacing:1px;">构造哈希碰撞</div>
+          <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">两个不同输入得到相同输出</div>
+        </div>
+        <div style="background:#060d1a; border:1px solid rgba(255,107,53,0.3); padding:14px; text-align:center;">
+          <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--accent2); margin-bottom:8px; letter-spacing:1px;">绕过完整性校验</div>
+          <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">篡改数据后哈希值不变</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 2: FNV IMPLEMENTATION -->
+  <div class="section">
+    <div class="section-label">算法实现</div>
+    <div class="section-title">FNV-1a 的代码</div>
+
+    <div class="code-block">
+<span class="type">uint32_t</span> <span class="fn">simple_hash</span>(<span class="keyword">const</span> <span class="type">char</span> *data, <span class="type">size_t</span> len) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="type">uint32_t</span> h = <span class="number">2166136261u</span>;  <span class="comment">// 0x811C9DC5，经数学分析选定的初始值</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">for</span> (<span class="type">size_t</span> i = <span class="number">0</span>; i &lt; len; i++) {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;h = (h * <span class="number">16777619</span>) ^ data[i];<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 乘法结果超出 uint32_t 范围时自动回绕（mod 2³²）</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">// 回绕是算法的一部分，不是 bug</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;}<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> h;<br>
+}
+    </div>
+
+    <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+      <div class="card" style="padding:18px; margin:0;">
+        <div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--accent); letter-spacing:2px; margin-bottom:8px;">初始值</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:15px; color:#fff;">2166136261</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">= 0x811C9DC5</div>
+      </div>
+      <div class="card orange" style="padding:18px; margin:0;">
+        <div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--accent2); letter-spacing:2px; margin-bottom:8px;">乘数 P</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:15px; color:#fff;">16777619</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">= 0x01000193</div>
+      </div>
+      <div class="card green" style="padding:18px; margin:0;">
+        <div style="font-family:'Space Mono',monospace; font-size:9px; color:var(--accent3); letter-spacing:2px; margin-bottom:8px;">输出范围</div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:15px; color:#fff;">0 ~ 2³²-1</div>
+        <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">固定 32 位</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 3: MATH -->
+  <div class="section">
+    <div class="section-label">数学展开</div>
+    <div class="section-title">乘法扩散：信息为什么会扩散到所有位</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>把 h 拆成高低两部分</h4>
+          <p>取第一轮实际值，将 h 写成多项式形式：</p>
+          <div class="math-box">
+h = <span class="eq">0x811C9DC5</span> = 2,166,136,261<br><br>
+h = A × 2¹⁶ + B<br><br>
+A = <span class="eq">0x811C</span> = 33,052   <span class="comment">（高16位）</span><br>
+B = <span class="eq">0x9DC5</span> = 40,389   <span class="comment">（低16位）</span><br><br>
+<span class="comment">验证：33,052 × 65,536 + 40,389 = 2,166,136,261 ✓</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>多项式展开，看信息去了哪里</h4>
+          <div class="math-box">
+h × P = (A × 2¹⁶ + B) × P<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span class="eq">A × P × 2¹⁶</span>  +  <span class="result">B × P</span><br><br>
+<span class="eq">第一项：A × P × 2¹⁶</span><br>
+<span class="comment">  A × P = 33,052 × 16,777,619 ≈ 2³¹</span><br>
+<span class="comment">  log₂(33,052 × 16,777,619) ≈ 31 → 最多需要 31 位表示</span><br>
+<span class="comment">  再 × 2¹⁶（左移16位）→ 31 + 16 = 47 位</span><br>
+<span class="comment">  从第0位左移16位起算 → 落在第 16~47 位区域</span><br><br>
+<span class="result">第二项：B × P</span><br>
+<span class="comment">  B × P = 40,389 × 16,777,619 = 677,361,634,191</span><br>
+<span class="comment">  log₂(677,361,634,191) ≈ 39.3 → 最多需要 40 位</span><br>
+<span class="comment">  从第0位起算 → 落在第 0~39 位区域</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>两项在第 16~39 位区域交叉相加</h4>
+          <p style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">
+            第一项占 16~47 位，第二项占 0~39 位，重叠区间是 <span style="color:var(--accent2)">第 16~39 位</span>，两项在此叠加混合。
+          </p>
+          <div class="memory-layout">
+            <div class="mem-block" style="flex:2;">
+              <div class="mem-label">位 47~40</div>
+              <div class="mem-val" style="font-size:10px;">仅 A×P 贡献</div>
+            </div>
+            <div class="mem-block high" style="flex:3;">
+              <div class="mem-label">位 39~16 ← 交叉区域</div>
+              <div class="mem-val" style="font-size:10px;">A×P 低位 + B×P 高位</div>
+            </div>
+            <div class="mem-block low" style="flex:2;">
+              <div class="mem-label">位 15~0</div>
+              <div class="mem-val" style="font-size:10px;">仅 B×P 贡献</div>
+            </div>
+          </div>
+          <p style="font-size:13px; color:var(--text-muted); margin-top:8px;">
+            ↑ 橙色区域（位 39~16）：A（原高16位）和 B（原低16位）的信息在此交叉叠加，互相影响
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>uint32_t 自动回绕 = 截取低32位 = mod 2³²，三者完全等价</h4>
+          <div class="math-box">
+<span class="comment">// 三种说法，同一件事：</span><br>
+<span class="eq">① uint32_t 回绕</span>：超出 2³² 的部分自动消失<br>
+<span class="eq">② 截取低32位</span>：丢弃高32位，保留低32位<br>
+<span class="eq">③ mod 2³²</span>：除以 2³²，取余数<br><br>
+完整64位结果：<span class="comment">0x0080FFFF_4B5E4A37</span><br><br>
+<span style="color:#555;">高32位：0x0080FFFF</span>  <span class="comment">← 三种方式都丢弃这里</span><br>
+<span class="result">低32位：0x4B5E4A37</span>  <span class="comment">← 三种方式都保留这里 = 下一轮的 h</span><br><br>
+<span class="comment">// 低32位里包含什么？</span><br>
+= B 的贡献 + <span class="eq">A 溢出进来的部分（高位"折叠"回低位）</span><br>
+= 低16位的信息 + <span class="eq">高16位的信息</span><br><br>
+<span class="result">原来 h 的高16位和低16位，现在都影响了结果的每一位</span>
+          </div>
+          <div class="memory-layout" style="margin-top:12px;">
+            <div class="mem-block discard" style="flex:1;">
+              <div class="mem-label">位 63~32</div>
+              <div class="mem-val">0x0080FFFF</div>
+              <div style="font-size:9px; margin-top:4px;">回绕丢弃 / mod截掉</div>
+            </div>
+            <div class="mem-block keep" style="flex:1;">
+              <div class="mem-label">位 31~0</div>
+              <div class="mem-val">0x4B5E4A37</div>
+              <div style="font-size:9px; margin-top:4px;">保留 = 余数 = 下一轮 h</div>
+            </div>
+          </div>
+          <p style="font-size:12px; color:var(--text-muted); margin-top:10px; line-height:1.8;">
+            "折叠"是直觉描述：高位的信息没有消失，而是通过加法进位的方式"压入"了低32位。
+            这正是 <span style="color:var(--accent3)">uint32_t</span> 比 <span style="color:var(--accent2)">uint64_t</span> 更适合做哈希的原因——回绕强制把所有信息压缩进固定范围，同时保留了扩散效果。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="formula">
+      <div class="formula-text">
+        低32位 = (A × P × 2¹⁶ + B × P) <span style="color:var(--accent)">mod 2³²</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= <span style="color:var(--accent2)">高16位的贡献</span> + <span style="color:var(--accent)">低16位的贡献</span><br>
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ <span style="color:var(--accent3)">每一位都受到原 h 所有位的影响</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 4: INTERACTIVE -->
+  <div class="section">
+    <div class="section-label">交互演示</div>
+    <div class="section-title">亲眼看到雪崩效应</div>
+
+    <div class="interactive-panel">
+      <div class="input-row">
+        <span class="input-label">输入 A</span>
+        <input type="text" id="inputA" value="abc" maxlength="20">
+        <span class="input-label" style="margin-left:8px;">输入 B</span>
+        <input type="text" id="inputB" value="abd" maxlength="20">
+      </div>
+
+      <div class="hash-display">
+        <div class="hash-card">
+          <div class="hash-card-label">HASH(A)</div>
+          <div class="hash-value" id="hashA">0xE40C292C</div>
+        </div>
+        <div class="hash-card">
+          <div class="hash-card-label">HASH(B)</div>
+          <div class="hash-value" id="hashB" style="color:var(--accent2);">0xE70C2DE5</div>
+        </div>
+      </div>
+
+      <div class="bit-viz" style="margin-top:24px;">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--text-muted); letter-spacing:2px; margin-bottom:12px;">位级对比（橙色 = 不同的位）</div>
+        <div class="bit-row">
+          <span class="bit-label">HASH(A)</span>
+          <div class="bits" id="bitsA"></div>
+        </div>
+        <div class="bit-row">
+          <span class="bit-label">HASH(B)</span>
+          <div class="bits" id="bitsB"></div>
+        </div>
+        <div id="diffCount" class="diff-count"></div>
+      </div>
+
+      <div class="avalanche-viz" style="margin-top:24px;" id="avalancheViz">
+        <div style="font-family:'Space Mono',monospace; font-size:10px; color:var(--text-muted); letter-spacing:2px; margin-bottom:8px;">雪崩扩散度</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 5: COMPARISON -->
+  <div class="section">
+    <div class="section-label">关键对比</div>
+    <div class="section-title">同样的回绕，完全不同的结果</div>
+
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>场景</th>
+          <th>回绕是否预期</th>
+          <th>类型是否正确</th>
+          <th>行为定义</th>
+          <th>后果</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div style="font-weight:700; color:#fff; margin-bottom:4px;">calloc 乘法漏洞</div>
+            <div style="font-size:11px; color:var(--text-muted);">count × sizeof(element_t)</div>
+          </td>
+          <td><span class="tag bad">❌ 意外</span></td>
+          <td><span class="tag bad">❌ 取决于实现</span></td>
+          <td><span class="tag neutral">未定义 / 回绕</span></td>
+          <td style="color:var(--accent2);">堆溢出 → RCE</td>
+        </tr>
+        <tr>
+          <td>
+            <div style="font-weight:700; color:#fff; margin-bottom:4px;">FNV-1a 哈希</div>
+            <div style="font-size:11px; color:var(--text-muted);">h × 16777619</div>
+          </td>
+          <td><span class="tag good">✅ 设计需求</span></td>
+          <td><span class="tag good">✅ uint32_t 无符号</span></td>
+          <td><span class="tag good">C 标准定义 mod 2³²</span></td>
+          <td style="color:var(--accent3);">雪崩效应 → 安全哈希</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="card gold" style="margin-top:20px; padding:20px;">
+      <div style="font-family:'Space Mono',monospace; font-size:11px; color:var(--accent4); letter-spacing:2px; margin-bottom:10px;">核心结论</div>
+      <p style="line-height:2; font-size:15px; color:var(--text-dim);">
+        无符号整数的回绕是 C 标准定义的 <span style="color:var(--accent4)">mod 2ⁿ 运算</span>，行为完全可预测，可以作为算法设计的基础。<br>
+        有符号整数溢出是<span style="color:var(--accent2)">未定义行为</span>，任何依赖它的算法都是错误的。<br>
+        区别不在于回绕本身，在于：<span style="color:#fff; font-weight:700;">程序员是否知道它会发生，并选对了类型。</span>
+      </p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 6: AGENT -->
+  <div class="section">
+    <div class="section-label">AI 助手</div>
+    <div class="section-title">问问 Claude</div>
+
+    <div class="agent-section">
+      <div class="agent-title">⟡ Claude · 实时问答</div>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:20px; line-height:1.8; position:relative; z-index:1;">
+        关于 FNV-1a、哈希函数原理、整数安全，有任何问题都可以直接问。
+      </p>
+
+      <div class="ask-suggested">
+        <button class="suggest-btn" onclick="fillQuestion('为什么选16777619这个数作为乘数？')">为什么是16777619？</button>
+        <button class="suggest-btn" onclick="fillQuestion('哈希碰撞攻击是怎么工作的？')">哈希碰撞攻击</button>
+        <button class="suggest-btn" onclick="fillQuestion('用有符号int做哈希会发生什么？')">用有符号int会怎样？</button>
+        <button class="suggest-btn" onclick="fillQuestion('SHA-256和FNV哈希有什么区别？')">SHA-256 vs FNV</button>
+        <button class="suggest-btn" onclick="fillQuestion('为什么初始值是2166136261？')">初始值为什么是这个？</button>
+      </div>
+
+      <div class="ask-input-row">
+        <input type="text" class="ask-input" id="askInput" placeholder="输入你的问题..." onkeydown="if(event.key==='Enter') askClaude()">
+        <button class="ask-btn" id="askBtn" onclick="askClaude()">发送</button>
+      </div>
+
+      <div class="response-box" id="responseBox"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    FNV-1a Hash · Integer Security · Chapter 5 · Security Programming
+  </div>
+
+</div>
+
+<script>
+// ─── FNV-1a Hash ───────────────────────────────────────────────
+function fnv1a(str) {
+  let h = 0x811C9DC5;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h, 0x01000193) >>> 0;
+    h = (h ^ str.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
+
+function toHex(n) {
+  return '0x' + n.toString(16).toUpperCase().padStart(8, '0');
+}
+
+function toBits(n) {
+  return n.toString(2).padStart(32, '0');
+}
+
+// ─── Bit Visualization ─────────────────────────────────────────
+function renderBits(containerId, bits, diffBits) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  for (let i = 0; i < 32; i++) {
+    const div = document.createElement('div');
+    div.className = 'bit';
+    div.textContent = bits[i];
+    if (bits[i] === '1') div.classList.add('one');
+    if (diffBits && diffBits[i] === '1') div.classList.add('diff');
+    el.appendChild(div);
+  }
+}
+
+function updateHash() {
+  const a = document.getElementById('inputA').value || '';
+  const b = document.getElementById('inputB').value || '';
+
+  const ha = fnv1a(a);
+  const hb = fnv1a(b);
+
+  const hexA = toHex(ha);
+  const hexB = toHex(hb);
+
+  const elA = document.getElementById('hashA');
+  const elB = document.getElementById('hashB');
+
+  elA.textContent = hexA;
+  elB.textContent = hexB;
+
+  if (hexA !== hexB) {
+    elB.classList.add('changed');
+    setTimeout(() => elB.classList.remove('changed'), 600);
+  }
+
+  const bitsA = toBits(ha);
+  const bitsB = toBits(hb);
+  const diffBits = bitsA.split('').map((b, i) => b !== bitsB[i] ? '1' : '0').join('');
+  const diffCount = diffBits.split('').filter(x => x === '1').length;
+
+  renderBits('bitsA', bitsA, null);
+  renderBits('bitsB', bitsB, diffBits);
+
+  const dc = document.getElementById('diffCount');
+  dc.innerHTML = `32位中有 <strong style="color:var(--accent2); font-size:16px;">${diffCount}</strong> 位不同（${((diffCount/32)*100).toFixed(1)}%）`;
+
+  // Avalanche bar
+  const viz = document.getElementById('avalancheViz');
+  viz.innerHTML = '<div style="font-family:\'Space Mono\',monospace; font-size:10px; color:var(--text-muted); letter-spacing:2px; margin-bottom:8px;">雪崩扩散度</div>';
+  
+  const avRow = document.createElement('div');
+  avRow.className = 'av-row';
+  avRow.innerHTML = `
+    <span class="av-label">不同位数</span>
+    <div class="av-bar" style="width:${(diffCount/32)*100}%; background:${diffCount > 10 ? 'var(--accent2)' : 'var(--accent)'}; max-width:calc(100% - 200px);"></div>
+    <span class="av-val">${diffCount}/32 位 &nbsp;|&nbsp; ${((diffCount/32)*100).toFixed(1)}%</span>
+  `;
+  viz.appendChild(avRow);
+
+  const idealRow = document.createElement('div');
+  idealRow.className = 'av-row';
+  idealRow.innerHTML = `
+    <span class="av-label">理想值</span>
+    <div class="av-bar" style="width:50%; background:var(--accent3); max-width:calc(100% - 200px); opacity:0.5;"></div>
+    <span class="av-val">16/32 位 &nbsp;|&nbsp; 50.0%</span>
+  `;
+  viz.appendChild(idealRow);
+}
+
+document.getElementById('inputA').addEventListener('input', updateHash);
+document.getElementById('inputB').addEventListener('input', updateHash);
+updateHash();
+
+// ─── Intersection Observer for section reveal ──────────────────
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.section').forEach(s => observer.observe(s));
+
+// ─── Claude API ────────────────────────────────────────────────
+function fillQuestion(q) {
+  document.getElementById('askInput').value = q;
+  document.getElementById('askInput').focus();
+}
+
+async function askClaude() {
+  const input = document.getElementById('askInput');
+  const btn = document.getElementById('askBtn');
+  const box = document.getElementById('responseBox');
+  const q = input.value.trim();
+  if (!q) return;
+
+  btn.disabled = true;
+  btn.textContent = '思考中...';
+  box.className = 'response-box visible';
+  box.innerHTML = '<div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>';
+
+  const systemPrompt = `你是一位C/C++安全编程课程的助手，正在帮助讲解FNV-1a哈希函数和整数安全。
+
+当前课程背景：
+- 学生刚学完整数回绕（unsigned wraparound）是C标准定义行为
+- 学生了解calloc乘法溢出漏洞
+- 现在在学习FNV-1a哈希，理解"回绕有时是设计需求"
+- 核心对比：calloc回绕是bug，FNV回绕是设计
+
+回答要求：
+- 用中文回答，简洁清晰，100-200字
+- 结合整数安全的视角
+- 适当使用16进制和2的幂次表示大数
+- 语气像老师解答学生问题`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: q }]
+      })
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '抱歉，未能获取回答。';
+
+    box.innerHTML = '';
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'typing-cursor';
+
+    function typeNext() {
+      if (i < text.length) {
+        box.textContent = text.slice(0, i + 1);
+        box.appendChild(cursor);
+        i++;
+        setTimeout(typeNext, 18);
+      } else {
+        cursor.remove();
+      }
+    }
+    typeNext();
+
+  } catch (err) {
+    box.innerHTML = '<span style="color:var(--accent2);">请求失败，请检查网络连接。</span>';
+  }
+
+  btn.disabled = false;
+  btn.textContent = '发送';
+  input.value = '';
+}
+</script>
+
+</body>
+</html>
