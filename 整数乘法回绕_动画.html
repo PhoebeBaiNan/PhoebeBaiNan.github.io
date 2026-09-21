@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>整数乘法回绕 · 课堂演示</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#fff;color:#000;font-family:'仿宋_GB2312','FangSong','仿宋','Noto Sans CJK SC',serif}main{max-width:1440px;margin:auto;padding:28px 44px}header{border-bottom:2px solid #000;padding-bottom:16px}h1{font-size:38px;font-weight:400;margin:0 0 12px}header p{font-size:23px;margin:0;line-height:1.5}.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:20px 0}button,select{font:inherit;font-size:22px;background:#fff;color:#000;border:1px solid #000;padding:9px 18px;cursor:pointer}button:disabled{opacity:.35;cursor:default}button:focus-visible,select:focus-visible{outline:3px double #000;outline-offset:3px}#play{background:#000;color:#fff;min-width:105px}.toolbar label{margin-left:auto;font-size:20px}.layout{display:grid;grid-template-columns:1.08fr 1fr;gap:36px}.section-title{font-size:24px;margin:10px 0 16px;font-weight:400}.code{border:1px solid #000;padding:20px 12px;min-height:295px;font-size:clamp(19px,1.8vw,27px);line-height:1.9;white-space:pre-wrap;overflow-wrap:anywhere}.code-line{display:block;border-left:4px solid transparent;padding-left:14px;min-height:1.9em}.code-line.active{border-color:#000;font-weight:bold}.code-line.pending{visibility:hidden}.console{border:1px solid #000;min-height:145px;padding:16px 20px;font-size:24px;line-height:1.65;margin-top:20px;white-space:pre-wrap}.result{border-top:1px solid #000;padding:18px 0}.result:first-of-type{border-top:0}.label{font-size:23px}.value{font-size:clamp(30px,3.6vw,52px);margin-top:12px;min-height:1.35em;font-variant-numeric:tabular-nums}.value.small{font-size:31px}.explain{margin-top:24px;border-top:2px solid #000;padding-top:17px;min-height:112px;font-size:27px;line-height:1.65}#stepLabel{font-size:22px}footer{margin-top:10px;font-size:18px;line-height:1.55}.binary{font-size:22px;overflow-wrap:anywhere;line-height:1.6}.discard{border-bottom:2px dashed #000;padding:0 5px;margin-right:12px}.keep{border:1px solid #000;padding:2px 7px;display:inline-block}.invisible{visibility:hidden}@media(max-width:850px){main{padding:20px}.layout{grid-template-columns:1fr}.toolbar label{margin-left:0}h1{font-size:29px}.value{font-size:36px}.code{font-size:21px}.explain{font-size:23px}}@media print{.toolbar,footer{display:none}}
+</style></head>
+<body><main>
+<header><h1>同一次乘法，为什么会得到两个结果？</h1><p>数学中的精确乘积，与32位无符号整数保存的结果。</p></header>
+<div class="toolbar"><button id="play">播放</button><button id="prev">上一步</button><button id="next">下一步</button><button id="reset">重播</button><span id="stepLabel" aria-live="polite"></span><label>每步停留 <select id="speed" aria-label="每步停留时间"><option value="2500">2.5秒</option><option value="4500" selected>4.5秒</option><option value="7000">7秒</option></select></label><button id="full">全屏</button></div>
+<div class="layout">
+<section><h2 class="section-title">代码执行演示（C）</h2><div class="code" aria-label="逐步显示的C代码"><span class="code-line" id="c0">#include &lt;stdint.h&gt;</span><span class="code-line" id="c1">uint32_t A = 357913942;</span><span class="code-line" id="c2">uint32_t B = 12;</span><span class="code-line" id="c3">uint64_t exact = (uint64_t)A * B;</span><span class="code-line" id="c4">uint32_t result = A * B;</span></div><div class="console" id="console" aria-label="变量观察窗口"></div></section>
+<section><h2 class="section-title">计算结果对照</h2><div class="result"><div class="label">数学乘积 A × B</div><div class="value" id="exact">？</div></div><div class="result"><div class="label">32位无符号整数最大值：2³² − 1</div><div class="value small" id="max">4,294,967,295</div></div><div class="result"><div class="label">程序中的32位结果 result</div><div class="value" id="wrapped">？</div></div><div id="bits" class="binary invisible"><span class="discard">1</span><span class="keep">0000 0000 0000 0000 0000 0000 0000 1000</span><br>超出32位的高位不保留，低32位表示8。</div></section>
+</div>
+<div class="explain" id="explain" aria-live="polite"></div>
+
+</main>
+<script>
+'use strict';
+const A=357913942n,B=12n,product=A*B,modulus=1n<<32n,result=BigInt.asUintN(32,product);
+const fmt=n=>n.toLocaleString('en-US');
+const descriptions=[
+ '先预测：A × B 的数学结果很大，程序保存的结果一定同样大吗？',
+ '设定输入 A = 357,913,942，B = 12。两个输入都能用32位无符号整数表示。',
+ '先用更宽的类型计算：357,913,942 × 12 = '+fmt(product)+'。',
+ '精确乘积比32位无符号最大值大9，超出了可表示范围。',
+ '执行32位乘法，得到 result = '+result+'。数学乘积很大，程序中的结果却很小。',
+ '4,294,967,304 = 1 × 2³² + 8。按模2³²保留结果，得到8。',
+ '这就是无符号整数乘法回绕：位宽有限，结果按模数保留。符合语言规则，不代表符合业务安全要求。'
+];
+let step=0,playing=false,timer=null;const $=id=>document.getElementById(id);
+function render(){
+ $('stepLabel').textContent=(step+1)+' / '+descriptions.length;
+ $('explain').textContent=descriptions[step];
+ $('exact').textContent=step>=2?fmt(product):'？';$('wrapped').textContent=step>=4?String(result):'？';
+ $('bits').classList.toggle('invisible',step<5);
+ let shown=step===0?0:step===1?2:step<=3?3:4;
+ for(let i=0;i<5;i++){let e=$('c'+i);e.classList.toggle('pending',i>shown);e.classList.toggle('active',i===shown&&step>0&&step<5);}
+ $('console').textContent=step===0?'等待执行…':step===1?'A = '+fmt(A)+'\nB = '+B:step<4?'exact = '+fmt(product):'exact  = '+fmt(product)+'\nresult = '+result;
+ $('prev').disabled=step===0;$('next').disabled=step===6;
+ $('play').textContent=playing?'暂停':step===6?'重新播放':'播放';
+ $('play').setAttribute('aria-pressed',String(playing));
+}
+function stop(){playing=false;clearTimeout(timer);timer=null;render();}
+function schedule(){clearTimeout(timer);if(!playing)return;timer=setTimeout(()=>{step++;if(step>=6){step=6;playing=false;}render();if(playing)schedule();},Number($('speed').value));}
+function toggle(){if(playing){stop();return;}if(step===6)step=0;playing=true;render();schedule();}
+function move(delta){stop();step=Math.max(0,Math.min(6,step+delta));render();}
+$('play').onclick=toggle;$('prev').onclick=()=>move(-1);$('next').onclick=()=>move(1);$('reset').onclick=()=>{stop();step=0;render();};$('speed').onchange=()=>{if(playing)schedule();};
+$('full').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch(e){$('full').textContent='可按 F11 全屏';}};
+document.addEventListener('keydown',e=>{if(/^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName))return;if(e.code==='Space'){e.preventDefault();toggle();}else if(e.key==='ArrowRight'){e.preventDefault();move(1);}else if(e.key==='ArrowLeft'){e.preventDefault();move(-1);}else if(e.key.toLowerCase()==='r'){stop();step=0;render();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
+render();
+</script></body></html>
